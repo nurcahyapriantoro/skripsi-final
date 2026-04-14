@@ -1,0 +1,9 @@
+node_modules/
+artifacts/
+cache/
+.env
+analysis/results/*.csv
+analysis/results/*.txt
+coverage/
+coverage.json
+typechain-types/
