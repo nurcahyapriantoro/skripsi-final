@@ -1,10 +1,3 @@
-/**
- * @file collect_gas_data.js
- * @description Collects 30-iteration gas data for withdrawFunds() on SecureVault and MutexVault.
- *              Resets Hardhat Network state between each iteration for isolation.
- *              Outputs: analysis/results/gas_data_cei.csv, gas_data_mutex.csv
- */
-
 const { ethers, network } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
@@ -23,7 +16,6 @@ async function measureGas(contractName) {
   await vault.connect(buyer).depositFunds(0, { value: DEPOSIT_AMOUNT });
   await vault.connect(buyer).confirmDelivery(0);
 
-  // Measure gas for withdrawFunds()
   const tx = await vault.connect(seller).withdrawFunds();
   const receipt = await tx.wait();
 
@@ -48,7 +40,6 @@ async function runBenchmark() {
     const rows = ["iteration,gas_used,block_number,tx_hash"];
 
     for (let i = 1; i <= ITERATIONS; i++) {
-      // Reset Hardhat Network to ensure clean state for every iteration
       await network.provider.send("hardhat_reset");
 
       const result = await measureGas(name);

@@ -1,0 +1,54 @@
+@startuml
+title Alur Serangan Reentrancy pada InsecureVault
+
+actor "Attacker EOA" as eoa
+participant "Attacker\nContract" as attacker
+participant "InsecureVault" as vault
+database "balances\nmapping" as state
+
+== Phase 1: Setup ==
+eoa -> eoa: Deposit ETH via\nlegitimate order
+note right: Mendapatkan balance di vault
+
+== Phase 2: Attack Initiation ==
+eoa -> attacker: attack()
+activate attacker
+attacker -> attacker: reentrancyCount = 0
+attacker -> vault: withdrawFunds()
+activate vault
+
+== Phase 3: First Withdraw (CEI violation) ==
+vault -> state: balances[msg.sender]=0.01 ETH
+vault -> attacker: call{value: amount}()
+note right: External call SEBELUM\nstate update (CEI dilanggar)
+
+== Phase 4: Reentrancy Loop ==
+attacker -> attacker: receive() triggered
+activate attacker
+attacker -> attacker: reentrancyCount++ (1)
+attacker -> vault: withdrawFunds() ← RE-ENTRY!
+activate vault
+vault -> state: balances[msg.sender] still 0.01 ETH!
+note right: balances BELUM direset\nkarena baris `= 0` belum dieksekusi
+vault -> attacker: call{value: amount}()
+attacker -> attacker: receive() triggered
+attacker -> attacker: reentrancyCount++ (2)
+attacker -> vault: withdrawFunds() ← RE-ENTRY lagi!
+activate vault
+vault -> attacker: call{value: amount}()
+note right: Loop 16× hingga\nvault terkuras
+deactivate vault
+deactivate attacker
+
+== Phase 5: State Updated After Loop ==
+vault -> state: balances[msg.sender] = 0
+note right: Baris ini akhirnya\ndieksekusi setelah\nsemua ETH terkuras
+deactivate vault
+deactivate attacker
+
+== Phase 6: Exfiltration ==
+eoa -> attacker: collectFunds()
+attacker -> eoa: owner.call{value: balance}("")
+note right: Dana curian dikirim\nke Attacker EOA
+
+@enduml

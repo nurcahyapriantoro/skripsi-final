@@ -1,10 +1,3 @@
-/**
- * @file opcode_trace.js
- * @description Extracts SSTORE and SLOAD opcode execution counts for each contract
- *              using Hardhat's debug_traceTransaction.
- *              Outputs: analysis/results/opcode_data_cei.csv, opcode_data_mutex.csv
- */
-
 const { ethers, network } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
@@ -13,7 +6,6 @@ const ITERATIONS = 30;
 const DEPOSIT_AMOUNT = ethers.parseEther("0.5");
 
 async function getOpcodeTrace(txHash) {
-  // Use debug_traceTransaction to get EVM-level execution trace
   const trace = await network.provider.send("debug_traceTransaction", [
     txHash,
     { disableStorage: false, disableMemory: true, disableStack: false },
