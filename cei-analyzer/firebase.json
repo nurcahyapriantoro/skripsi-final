@@ -8,10 +8,6 @@
     ],
     "rewrites": [
       {
-        "source": "/api/analyze",
-        "function": "analyze"
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }
