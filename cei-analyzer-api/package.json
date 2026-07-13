@@ -1,0 +1,10 @@
+{
+  "name": "cei-analyzer-api",
+  "version": "1.0.0",
+  "description": "Secure proxy for DeepSeek API used by CEI Pattern Analyzer (skripsi Nurcahya Priantoro).",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  }
+}

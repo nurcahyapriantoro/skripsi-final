@@ -472,44 +472,19 @@ export default function App() {
   }
 
   // ─── API ───
-  const SYSTEM_PROMPT = `You are an expert Solidity smart contract security auditor specializing in reentrancy vulnerability detection, specifically the Checks-Effects-Interactions (CEI) pattern.
-
-Your task: Analyze Solidity function code and classify each meaningful line or block into one of three categories:
-- CHECKS: Input validation, require statements, condition checks
-- EFFECTS: State variable updates, balance modifications, status changes
-- INTERACTIONS: External calls, .call(), .transfer(), .send(), interface calls
-
-Then detect if the ordering violates CEI (i.e., INTERACTIONS appear before EFFECTS).
-
-Respond ONLY with a valid JSON object. No preamble, no markdown fences.`
-
   const analyzeWithDeepseek = useCallback(async (code) => {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch('https://cei-analyzer-api.vercel.app/api/analyze', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer sk-6e459dd849a34758a23396b58503ef8f'
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        max_tokens: 1500,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          {
-            role: 'user',
-            content: `Analyze this Solidity function for CEI pattern compliance:\n\n\`\`\`solidity\n${code}\n\`\`\``
-          }
-        ]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
     })
     if (!response.ok) {
       const errText = await response.text().catch(() => 'Unknown error')
       throw new Error(`API error (${response.status}): ${errText}`)
     }
-    const result = await response.json()
-    const textContent = result.choices?.[0]?.message?.content || ''
-    const clean = textContent.replace(/```json|```/g, '').trim()
-    return JSON.parse(clean)
+    const data = await response.json()
+    if (!data.success) throw new Error(data.error || 'Analysis failed')
+    return data.data
   }, [])
 
   async function handleAnalyze() {

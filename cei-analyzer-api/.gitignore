@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Env files (real secrets)
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
+
+# Logs
+*.log
+.vercel
