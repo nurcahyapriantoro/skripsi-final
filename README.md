@@ -394,6 +394,34 @@ cd slither && ./run_slither.sh
 
 ---
 
+## 📑 Daftar Lampiran Skripsi (Lampiran 1–17)
+
+Lampiran tersedia di folder [`analysis/`](analysis/) dalam format Markdown. Setiap lampiran memuat penjelasan, cross-reference ke bab, dan link raw GitHub.
+
+| # | File | Isi | Cross-ref |
+|---|------|-----|-----------|
+| 1 | (di skripsi) | Kode `withdrawFunds()` InsecureVault | Bab 3.3.1 |
+| 2 | (di skripsi) | Kode `withdrawFunds()` SecureVault | Bab 3.3.2 |
+| 3 | (di skripsi) | Kode `withdrawFunds()` MutexVault | Bab 3.3.3 |
+| 4 | (di skripsi) | Kode `attack()` & `receive()` Attacker | Bab 3.3.4 |
+| 5 | [`Lampiran_5_Slither_Output.md`](analysis/Lampiran_5_Slither_Output.md) | Ringkasan keluaran Slither | Bab 4.1 |
+| 6 | (di skripsi) | Bukti transaksi validasi on-chain di Sepolia | Bab 4.2.3 |
+| 7 | (di skripsi) | Data mentah konsumsi gas 30 iterasi | Bab 4.4 |
+| 8 | (di skripsi) | Desain System Prompt DeepSeek API | Bab 4.5 |
+| **9** | [`Lampiran_9_Source_Kontrak_Lengkap.md`](analysis/Lampiran_9_Source_Kontrak_Lengkap.md) | Source lengkap 4 kontrak | Bab 3.3 |
+| **10** | [`Lampiran_10_Test_Hardhat.md`](analysis/Lampiran_10_Test_Hardhat.md) | 5 file test Hardhat | Bab 3.5 |
+| **11** | [`Lampiran_11_Konfigurasi_Lingkungan.md`](analysis/Lampiran_11_Konfigurasi_Lingkungan.md) | package.json, hardhat.config, versi | Tabel 2 |
+| **12** | [`Lampiran_12_Gas_Reporter_Lengkap.md`](analysis/Lampiran_12_Gas_Reporter_Lengkap.md) | Laporan Hardhat Gas Reporter | Bab 4.4, Gambar 14–17 |
+| **13** | [`Lampiran_13_Laporan_Statistik.md`](analysis/Lampiran_13_Laporan_Statistik.md) | Analisis statistik lengkap (Shapiro-Wilk, deterministik) | Bab 3.7.1, Tabel 9 |
+| **14** | [`Lampiran_14_Opcode_Per_Iterasi.md`](analysis/Lampiran_14_Opcode_Per_Iterasi.md) | SSTORE/SLOAD per iterasi | Bab 4.4.4, Gambar 18 |
+| **15** | [`Lampiran_15_Source_Diagram.md`](analysis/Lampiran_15_Source_Diagram.md) | PlantUML + Mermaid source | Gambar 2, 8 |
+| **16** | [`Lampiran_16_Skrip_Sepolia.md`](analysis/Lampiran_16_Skrip_Sepolia.md) | Skrip deployment & skenario Sepolia | Bab 3.5.4, 4.2.3 |
+| **17** | [`Lampiran_17_Kode_AI_Analyzer.md`](analysis/Lampiran_17_Kode_AI_Analyzer.md) | Kode AI Analyzer (App.jsx + Vercel) | Bab 4.5 |
+
+Lampiran 9–17 adalah lampiran **tambahan** yang dibuat untuk memperkuat reproducibility eksperimen.
+
+---
+
 ## 📝 Referensi Utama
 
 1. Atzei, N., Bartoletti, M., & Cimoli, T. (2017). "A Survey of Attacks on Ethereum Smart Contracts"
