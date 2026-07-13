@@ -1419,10 +1419,10 @@ function SupplyChainCaseStudy({ isDark }) {
   const deployPct = ((deployDiff / 652666) * 100).toFixed(2)
 
   const scenarios = [
-    { label: '🏭 Kopi Gayo (Aceh)', txMonth: 667, desc: 'Ekspor specialty coffee 8.000 transaksi/tahun' },
-    { label: '🏪 B2B Marketplace RI', txMonth: 15000, desc: 'Platform escrow B2B Indonesia 180.000 transaksi/tahun' },
-    { label: '🛒 E-Commerce Nasional', txMonth: 2859000, desc: 'Adopsi 1% dari 3,43 miliar transaksi e-commerce/tahun' },
-    { label: '🌴 Kelapa Sawit (CPO)', txMonth: 456250, desc: 'Rantai pasok TBS petani kecil 5.475.000 transaksi/tahun' },
+    { label: '🏭 Kopi Gayo (ekspor)', sector: 'Pertanian', txMonth: 667, desc: 'Ekspor kopi arabika Gayo · Aceh' },
+    { label: '🏪 B2B Marketplace', sector: 'Perdagangan', txMonth: 15000, desc: 'Platform B2B marketplace Indonesia' },
+    { label: '🛒 E-Commerce COD', sector: 'Ritel', txMonth: 2859000, desc: 'Asumsi adopsi 1% dari 3,43 miliar transaksi e-commerce 2024 (BPS)' },
+    { label: '🌴 Kelapa Sawit (CPO)', sector: 'Agrikultur', txMonth: 456250, desc: 'Rantai pasok TBS petani kecil → CPO' },
   ]
 
   function formatGas(n) {
@@ -1474,17 +1474,16 @@ function SupplyChainCaseStudy({ isDark }) {
             <thead>
               <tr className={`text-[11px] ${isDark ? 'bg-[#202124]' : 'bg-[#f8f9fa]'}`}>
                 <th className={`text-left py-3 px-4 font-semibold uppercase tracking-wider rounded-tl-xl border-b ${isDark ? 'border-[#3c4043] text-[#e8eaed]' : 'border-[#e8eaed] text-[#3c4043]'}`}><Tx path="case.thScenario" /></th>
+                <th className={`text-left py-3 px-4 font-semibold uppercase tracking-wider border-b ${isDark ? 'border-[#3c4043] text-[#9aa0a6]' : 'border-[#e8eaed] text-[#5f6368]'}`}>Sektor</th>
                 <th className={`text-right py-3 px-4 font-semibold uppercase tracking-wider border-b ${isDark ? 'border-[#3c4043] text-[#9aa0a6]' : 'border-[#e8eaed] text-[#5f6368]'}`}>Transaksi / <Tx path="project.info4" /></th>
                 <th className={`text-right py-3 px-4 font-semibold uppercase tracking-wider border-b ${isDark ? 'border-[#3c4043] text-[#81c995]' : 'border-[#e8eaed] text-[#188038]'}`}><Tx path="case.thGas" /></th>
-                <th className={`text-right py-3 px-4 font-semibold uppercase tracking-wider border-b ${isDark ? 'border-[#3c4043] text-[#8ab4f8]' : 'border-[#e8eaed] text-[#1a73e8]'}`}><Tx path="case.thUSD" /></th>
                 <th className={`text-right py-3 px-4 font-semibold uppercase tracking-wider rounded-tr-xl border-b ${isDark ? 'border-[#3c4043] text-[#fdd663]' : 'border-[#e8eaed] text-[#f9ab00]'}`}><Tx path="case.thIDR" /></th>
               </tr>
             </thead>
             <tbody>
               {scenarios.map((s, i) => {
                 const yearly = diff * s.txMonth * 12
-                const yearlyEth = yearly * 20 * 1e-9 * 2126
-                const rupiah = yearlyEth * 17700
+                const rupiah = yearly * 20 * 1e-9 * 2126 * 17700
                 const isLast = i === scenarios.length - 1
                 const isBig = s.txMonth > 10000
                 return (
@@ -1498,9 +1497,9 @@ function SupplyChainCaseStudy({ isDark }) {
                         </div>
                       </div>
                     </td>
+                    <td className={`py-3 px-4 text-left font-medium text-xs border-b ${isDark ? 'border-[#3c4043] text-[#9aa0a6]' : 'border-[#e8eaed] text-[#5f6368]'}`}>{s.sector}</td>
                     <td className={`py-3 px-4 text-right font-mono text-xs border-b ${isDark ? 'border-[#3c4043] text-[#9aa0a6]' : 'border-[#e8eaed] text-[#5f6368]'}`}>{(s.txMonth * 12).toLocaleString()}</td>
                     <td className={`py-3 px-4 text-right font-mono text-xs font-semibold border-b ${isDark ? 'border-[#3c4043] text-[#81c995]' : 'border-[#e8eaed] text-[#188038]'}`}>{formatGas(yearly)}</td>
-                    <td className={`py-3 px-4 text-right font-mono text-xs font-semibold border-b ${isDark ? 'border-[#3c4043] text-[#8ab4f8]' : 'border-[#e8eaed] text-[#1a73e8]'}`}>${formatMoney(yearlyEth)}</td>
                     <td className={`py-3 px-4 text-right font-mono text-xs font-semibold border-b ${isLast ? 'rounded-br-xl' : ''} ${isDark ? 'border-[#3c4043] text-[#fdd663]' : 'border-[#e8eaed] text-[#5f3c00]'}`}>Rp {formatMoney(rupiah)}</td>
                   </tr>
                 )
@@ -1765,13 +1764,15 @@ function GasSection({ isDark }) {
 
             {/* Contract addresses */}
             <div className={`rounded-lg p-3 font-mono text-[10px] leading-relaxed ${isDark ? 'bg-[#202124] text-[#9aa0a6]' : 'bg-white text-[#5f6368]'}`}>
-              <div className={isDark ? 'text-[#8ab4f8]' : 'text-[#1a73e8)'}>🔗 Sepolia Contract Links (Klik untuk lihat TX):</div>
-              <div>• InsecureVault: <a href="https://sepolia.etherscan.io/address/0xeC53E293f4072b57E8261C22EA53E26c54E51727" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#8ab4f8' : '#1a73e8'}}>0xeC53E293f4072b57E8261C22EA53E26c54E51727 ↗</a></div>
-              <div>• SecureVault: <a href="https://sepolia.etherscan.io/address/0x4423bb421c8F482dAD0B73cf32D1f6F880F81680" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#81c995' : '#188038'}}>0x4423bb421c8F482dAD0B73cf32D1f6F880F81680 ↗</a></div>
-              <div>• MutexVault: <a href="https://sepolia.etherscan.io/address/0xa5cf0e3f478d0e08b03702cafc4e36a1e8548788" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#fdd663]' : '#f9ab00'}}>0xa5cf0e3f478d0e08b03702cafc4e36a1e8548788 ↗</a></div>
-              <div>• TX Attacker→InsecureVault: <a href="https://sepolia.etherscan.io/tx/0xc1ec44cbbba0575331b7fae2db9204d05afa8563e874771cd934121dbb7a9bb3" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0xc1ec44cb...b7a9bb3 ↗</a></div>
-              <div>• TX Attacker→SecureVault: <a href="https://sepolia.etherscan.io/tx/0x1ab563f1744219f7ca071d90b9867ce074ad05279039dc253236114dcfcaa065" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0x1ab563f1...cfcaa065 ↗</a></div>
-              <div>• TX Attacker→MutexVault: <a href="https://sepolia.etherscan.io/tx/0xffd492504ade457ab9841eafce9663d6141846241f05d50846ddfbaaf027fb20" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0xffd49250...f027fb20 ↗</a></div>
+              <div className={isDark ? 'text-[#8ab4f8]' : 'text-[#1a73e8]'}>🔗 Sepolia Contract Links (Lampiran 6 — klik untuk lihat di Etherscan):</div>
+              <div className="mt-1">📄 <span className="font-semibold">Kontrak:</span></div>
+              <div className="ml-4 break-all">• InsecureVault: <a href="https://sepolia.etherscan.io/address/0xeC53E293f4072b57E8261C22EA53E26c54E51727" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#8ab4f8' : '#1a73e8'}}>0xeC53E293f4072b57E8261C22EA53E26c54E51727 ↗</a></div>
+              <div className="ml-4 break-all">• SecureVault: <a href="https://sepolia.etherscan.io/address/0x4423bb421c8F482dAD0B73cf32D1f6F880F81680" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#81c995' : '#188038'}}>0x4423bb421c8F482dAD0B73cf32D1f6F880F81680 ↗</a></div>
+              <div className="ml-4 break-all">• MutexVault: <a href="https://sepolia.etherscan.io/address/0xa5cf0e3f478d0e08b03702cafc4e36a1e8548788" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#fdd663' : '#f9ab00'}}>0xa5cf0e3f478d0e08b03702cafc4e36a1e8548788 ↗</a></div>
+              <div className="mt-1">🔴 <span className="font-semibold">Transaksi Validasi (Lampiran 6):</span></div>
+              <div className="ml-4 break-all">• <span className="text-[#c5221f] dark:text-[#f28b82]">InsecureVault (sukses exploit)</span>: <a href="https://sepolia.etherscan.io/tx/0xc1ec44cbbba0575331b7fae2db9204d05afa8563e874771cd934121dbb7a9bb3" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0xc1ec44cbbba0575331b7fae2db9204d05afa8563e874771cd934121dbb7a9bb3 ↗</a></div>
+              <div className="ml-4 break-all">• <span style={{color: isDark ? '#81c995' : '#188038'}}>SecureVault (revert)</span>: <a href="https://sepolia.etherscan.io/tx/0x1ab563f1744219f7ca071d90b9867ce074ad05279039dc253236114dcfcaa065" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#81c995' : '#188038'}}>0x1ab563f1744219f7ca071d90b9867ce074ad05279039dc253236114dcfcaa065 ↗</a></div>
+              <div className="ml-4 break-all">• <span style={{color: isDark ? '#81c995' : '#188038'}}>MutexVault (revert)</span>: <a href="https://sepolia.etherscan.io/tx/0xffd492504ade457ab9841eafce9663d6141846241f05d50846ddfbaaf027fb20" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#81c995' : '#188038'}}>0xffd492504ade457ab9841eafce9663d6141846241f05d50846ddfbaaf027fb20 ↗</a></div>
               <div className="mt-1 italic"><Tx path="gas.onNote" /></div>
             </div>
 
