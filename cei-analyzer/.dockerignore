@@ -1,0 +1,17 @@
+node_modules
+.git
+.gitignore
+.env
+*.md
+!HASIL_PENELITIAN_LENGKAP.md
+src/
+public/
+index.html
+vite.config.js
+tailwind.config.js
+postcss.config.js
+package.json
+package-lock.json
+Dockerfile
+nginx.conf
+.dockerignore

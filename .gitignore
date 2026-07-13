@@ -12,6 +12,9 @@ typechain-types/
 .env.*.local
 *.pem
 *.key
+cei-analyzer/functions/.env.yaml
+cei-analyzer/.env
+cei-analyzer/.env.*
 
 # Test & coverage output
 coverage/
