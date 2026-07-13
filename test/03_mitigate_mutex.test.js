@@ -1,8 +1,3 @@
-/**
- * @file 03_mitigate_mutex.test.js
- * @description Proves MutexVault (ReentrancyGuard) also blocks the attack.
- *              Used to confirm both mitigations are security-equivalent.
- */
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
@@ -22,14 +17,12 @@ describe("=== EXPERIMENT 3: Mutex Mitigation on MutexVault ===", function () {
     mutexVault = await MutexVault.deploy();
     await mutexVault.waitForDeployment();
 
-    // Deploy Attacker pointing at MutexVault
     const AttackerFactory = await ethers.getContractFactory("Attacker");
     attacker = await AttackerFactory.connect(attackerEOA).deploy(
       await mutexVault.getAddress()
     );
     await attacker.waitForDeployment();
 
-    // Setup identical honeypot
     await mutexVault.connect(buyerA).createOrder(legitSeller.address);
     await mutexVault.connect(buyerA).depositFunds(0, { value: BUYER_A_DEPOSIT });
     await mutexVault.connect(buyerA).confirmDelivery(0);

@@ -5,7 +5,10 @@
   "scripts": {
     "test": "hardhat test",
     "lint": "solhint 'contracts/**/*.sol'",
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "deploy:testnet": "hardhat run scripts/deploy_testnet.js --network sepolia",
+    "attack:testnet": "hardhat run scripts/run_attack_testnet.js --network sepolia",
+    "dashboard": "node presentation/server.js"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +16,7 @@
   "description": "",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^17.4.2",
     "hardhat": "^2.28.6",
     "hardhat-gas-reporter": "^1.0.10",
     "solhint": "^4.5.4"
