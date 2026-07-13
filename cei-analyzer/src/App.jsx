@@ -1419,9 +1419,10 @@ function SupplyChainCaseStudy({ isDark }) {
   const deployPct = ((deployDiff / 652666) * 100).toFixed(2)
 
   const scenarios = [
-    { label: '🏭 Kopi Gayo (Aceh)', txMonth: 667, desc: 'Ekspor specialty coffee 2.000 kontainer/tahun' },
-    { label: '🏪 B2B Marketplace RI', txMonth: 15000, desc: 'Platform escrow B2B Indonesia' },
-    { label: '🛒 E-Commerce Nasional', txMonth: 2859000, desc: 'Migrasi COD ke blockchain escrow 5%' },
+    { label: '🏭 Kopi Gayo (Aceh)', txMonth: 667, desc: 'Ekspor specialty coffee 8.000 transaksi/tahun' },
+    { label: '🏪 B2B Marketplace RI', txMonth: 15000, desc: 'Platform escrow B2B Indonesia 180.000 transaksi/tahun' },
+    { label: '🛒 E-Commerce Nasional', txMonth: 2859000, desc: 'Adopsi 1% dari 3,43 miliar transaksi e-commerce/tahun' },
+    { label: '🌴 Kelapa Sawit (CPO)', txMonth: 456250, desc: 'Rantai pasok TBS petani kecil 5.475.000 transaksi/tahun' },
   ]
 
   function formatGas(n) {
@@ -1467,7 +1468,7 @@ function SupplyChainCaseStudy({ isDark }) {
         </div>
 
         {/* Tabel Simulasi */}
-        <h4 className={`text-sm font-semibold mb-4 ${isDark ? 'text-[#e8eaed]' : 'text-[#3c4043]'}`}><Tx path="case.tableTitle" /> <span className={`text-[10px] font-normal ${isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}`}>(gas 20 gwei · ETH $2.500 · Rp 16.000/USD)</span></h4>
+        <h4 className={`text-sm font-semibold mb-4 ${isDark ? 'text-[#e8eaed]' : 'text-[#3c4043]'}`}><Tx path="case.tableTitle" /> <span className={`text-[10px] font-normal ${isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}`}>(gas 20 gwei · ETH $2.126 · Rp 17.700/USD, per 22 Mei 2026)</span></h4>
         <div className="overflow-x-auto mb-4">
           <table className="w-full border-separate border-spacing-0">
             <thead>
@@ -1482,8 +1483,8 @@ function SupplyChainCaseStudy({ isDark }) {
             <tbody>
               {scenarios.map((s, i) => {
                 const yearly = diff * s.txMonth * 12
-                const yearlyEth = yearly * 20 * 1e-9 * 2500
-                const rupiah = yearlyEth * 16000
+                const yearlyEth = yearly * 20 * 1e-9 * 2126
+                const rupiah = yearlyEth * 17700
                 const isLast = i === scenarios.length - 1
                 const isBig = s.txMonth > 10000
                 return (
@@ -1508,7 +1509,7 @@ function SupplyChainCaseStudy({ isDark }) {
           </table>
         </div>
         <p className={`text-[10px] mt-2 italic text-right ${isDark ? 'text-[#5f6368]' : 'text-[#80868b]'}`}>
-          * Perhitungan: hemat per withdraw = 2.413 gas, gas price = 20 gwei, ETH = $2.500, USD/IDR = Rp 16.000
+          * Perhitungan: hemat per withdraw = 2.413 gas, gas price = 20 gwei, ETH = $2.126, USD/IDR = Rp 17.700 (kurs tengah BI per 22 Mei 2026)
         </p>
 
         {/* Insight box */}
@@ -1740,7 +1741,7 @@ function GasSection({ isDark }) {
                   <div className="flex justify-between"><span className={isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}><Tx path="gas.onLoops" /></span><span className="font-mono font-bold">24x</span></div>
                   <div className="flex justify-between"><span className={isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}><Tx path="gas.onVault" /></span><span className="font-bold">2,4 → 0,0 ETH 💀</span></div>
                   <div className="flex justify-between"><span className={isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}><Tx path="gas.onProfit" /></span><span className="font-bold">2,3 ETH 🚨</span></div>
-                  <div className="flex justify-between"><span className={isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}><Tx path="gas.onProof" /></span><a href="https://sepolia.etherscan.io/address/0xC717535bA12D65141bD30504e1B5b36a0079511C" target="_blank" rel="noopener noreferrer" className={`text-[10px] font-medium underline hover:opacity-80 ${isDark ? 'text-[#8ab4f8]' : 'text-[#1a73e8]'}`}><Tx path="gas.onViewTx" /> ↗</a></div>
+                  <div className="flex justify-between"><span className={isDark ? 'text-[#9aa0a6]' : 'text-[#5f6368]'}><Tx path="gas.onProof" /></span><a href="https://sepolia.etherscan.io/tx/0xc1ec44cbbba0575331b7fae2db9204d05afa8563e874771cd934121dbb7a9bb3" target="_blank" rel="noopener noreferrer" className={`text-[10px] font-medium underline hover:opacity-80 ${isDark ? 'text-[#8ab4f8]' : 'text-[#1a73e8]'}`}><Tx path="gas.onViewTx" /> ↗</a></div>
                 </div>
               </div>
 
@@ -1765,9 +1766,12 @@ function GasSection({ isDark }) {
             {/* Contract addresses */}
             <div className={`rounded-lg p-3 font-mono text-[10px] leading-relaxed ${isDark ? 'bg-[#202124] text-[#9aa0a6]' : 'bg-white text-[#5f6368]'}`}>
               <div className={isDark ? 'text-[#8ab4f8]' : 'text-[#1a73e8)'}>🔗 Sepolia Contract Links (Klik untuk lihat TX):</div>
-              <div>• InsecureVault: <a href="https://sepolia.etherscan.io/address/0xAcb09a7fC19Fdbb27e3AC2cC23c5071456f28E1b" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#8ab4f8' : '#1a73e8'}}>0xAcb09a7fC19Fdbb27e3AC2cC23c5071456f28E1b ↗</a></div>
-              <div>• SecureVault: <a href="https://sepolia.etherscan.io/address/0x711295a8465d1c8543D4b7db45Ac4A82Df9573c6" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#81c995' : '#188038'}}>0x711295a8465d1c8543D4b7db45Ac4A82Df9573c6 ↗</a></div>
-              <div>• Attacker (Attack TX): <a href="https://sepolia.etherscan.io/address/0xC717535bA12D65141bD30504e1B5b36a0079511C" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0xC717535bA12D65141bD30504e1B5b36a0079511C ↗</a></div>
+              <div>• InsecureVault: <a href="https://sepolia.etherscan.io/address/0xeC53E293f4072b57E8261C22EA53E26c54E51727" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#8ab4f8' : '#1a73e8'}}>0xeC53E293f4072b57E8261C22EA53E26c54E51727 ↗</a></div>
+              <div>• SecureVault: <a href="https://sepolia.etherscan.io/address/0x4423bb421c8F482dAD0B73cf32D1f6F880F81680" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#81c995' : '#188038'}}>0x4423bb421c8F482dAD0B73cf32D1f6F880F81680 ↗</a></div>
+              <div>• MutexVault: <a href="https://sepolia.etherscan.io/address/0xa5cf0e3f478d0e08b03702cafc4e36a1e8548788" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#fdd663]' : '#f9ab00'}}>0xa5cf0e3f478d0e08b03702cafc4e36a1e8548788 ↗</a></div>
+              <div>• TX Attacker→InsecureVault: <a href="https://sepolia.etherscan.io/tx/0xc1ec44cbbba0575331b7fae2db9204d05afa8563e874771cd934121dbb7a9bb3" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0xc1ec44cb...b7a9bb3 ↗</a></div>
+              <div>• TX Attacker→SecureVault: <a href="https://sepolia.etherscan.io/tx/0x1ab563f1744219f7ca071d90b9867ce074ad05279039dc253236114dcfcaa065" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0x1ab563f1...cfcaa065 ↗</a></div>
+              <div>• TX Attacker→MutexVault: <a href="https://sepolia.etherscan.io/tx/0xffd492504ade457ab9841eafce9663d6141846241f05d50846ddfbaaf027fb20" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{color: isDark ? '#f28b82' : '#c5221f'}}>0xffd49250...f027fb20 ↗</a></div>
               <div className="mt-1 italic"><Tx path="gas.onNote" /></div>
             </div>
 
