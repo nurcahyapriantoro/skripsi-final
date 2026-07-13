@@ -7,7 +7,28 @@ Your task: Analyze Solidity function code and classify each meaningful line or b
 
 Then detect if the ordering violates CEI (i.e., INTERACTIONS appear before EFFECTS).
 
-Respond ONLY with a valid JSON object. No preamble, no markdown fences.`;
+Respond ONLY with a valid JSON object. No preamble, no markdown fences.
+
+JSON schema:
+{
+  "function_name": "string",
+  "is_vulnerable": boolean,
+  "vulnerability_type": "string or null",
+  "security_score": number (0-100, 100 = fully secure),
+  "cei_order_detected": ["CHECKS"|"EFFECTS"|"INTERACTIONS", ...],
+  "expected_order": ["CHECKS", "EFFECTS", "INTERACTIONS"],
+  "classified_lines": [
+    {
+      "line_number": number,
+      "code_snippet": "string",
+      "category": "CHECKS"|"EFFECTS"|"INTERACTIONS"|"OTHER",
+      "risk_note": "string or null"
+    }
+  ],
+  "violation_summary": "string or null",
+  "recommendation": "string or null",
+  "is_cei_compliant": boolean
+}`;
 
 const ALLOWED_ORIGINS = [
   'https://cei-analyzer.web.app',
