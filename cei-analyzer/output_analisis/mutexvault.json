@@ -1,0 +1,63 @@
+{
+  "function_name": "withdrawFunds",
+  "is_vulnerable": false,
+  "vulnerability_type": null,
+  "security_score": 100,
+  "cei_order_detected": [
+    "CHECKS",
+    "EFFECTS",
+    "INTERACTIONS"
+  ],
+  "expected_order": [
+    "CHECKS",
+    "EFFECTS",
+    "INTERACTIONS"
+  ],
+  "classified_lines": [
+    {
+      "line_number": 9,
+      "code_snippet": "uint amount = balances[msg.sender];",
+      "category": "CHECKS",
+      "risk_note": "Reading state variable"
+    },
+    {
+      "line_number": 10,
+      "code_snippet": "require(amount > 0, \"Insufficient balance\");",
+      "category": "CHECKS",
+      "risk_note": null
+    },
+    {
+      "line_number": 11,
+      "code_snippet": "require(orderStatus == Status.RELEASED, \"Order not released\");",
+      "category": "CHECKS",
+      "risk_note": null
+    },
+    {
+      "line_number": 12,
+      "code_snippet": "(bool success,) = msg.sender.call{value: amount}(\"\");",
+      "category": "INTERACTIONS",
+      "risk_note": "External call"
+    },
+    {
+      "line_number": 13,
+      "code_snippet": "require(success, \"Transfer failed\");",
+      "category": "INTERACTIONS",
+      "risk_note": "Check after external call, part of interaction handling"
+    },
+    {
+      "line_number": 14,
+      "code_snippet": "balances[msg.sender] = 0;",
+      "category": "EFFECTS",
+      "risk_note": null
+    },
+    {
+      "line_number": 15,
+      "code_snippet": "orderStatus = Status.COMPLETED;",
+      "category": "EFFECTS",
+      "risk_note": null
+    }
+  ],
+  "violation_summary": null,
+  "recommendation": null,
+  "is_cei_compliant": true
+}

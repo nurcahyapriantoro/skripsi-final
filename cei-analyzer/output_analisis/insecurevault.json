@@ -1,0 +1,65 @@
+{
+  "function_name": "withdrawFunds",
+  "is_vulnerable": true,
+  "vulnerability_type": "reentrancy",
+  "security_score": 20,
+  "cei_order_detected": [
+    "CHECKS",
+    "CHECKS",
+    "INTERACTIONS",
+    "EFFECTS",
+    "EFFECTS"
+  ],
+  "expected_order": [
+    "CHECKS",
+    "EFFECTS",
+    "INTERACTIONS"
+  ],
+  "classified_lines": [
+    {
+      "line_number": 13,
+      "code_snippet": "uint amount = balances[msg.sender];",
+      "category": "CHECKS",
+      "risk_note": "Reads state for validation, part of check logic"
+    },
+    {
+      "line_number": 14,
+      "code_snippet": "require(amount > 0, \"Insufficient balance\");",
+      "category": "CHECKS",
+      "risk_note": "Input validation"
+    },
+    {
+      "line_number": 15,
+      "code_snippet": "require(orderStatus == Status.RELEASED, \"Order not released\");",
+      "category": "CHECKS",
+      "risk_note": "State condition check"
+    },
+    {
+      "line_number": 16,
+      "code_snippet": "(bool success,) = msg.sender.call{value: amount}(\"\");",
+      "category": "INTERACTIONS",
+      "risk_note": "External call before state updates; allows reentrancy"
+    },
+    {
+      "line_number": 17,
+      "code_snippet": "require(success, \"Transfer failed\");",
+      "category": "CHECKS",
+      "risk_note": "Post-call check but does not prevent reentrancy"
+    },
+    {
+      "line_number": 18,
+      "code_snippet": "balances[msg.sender] = 0;",
+      "category": "EFFECTS",
+      "risk_note": "State update occurs after external call"
+    },
+    {
+      "line_number": 19,
+      "code_snippet": "orderStatus = Status.COMPLETED;",
+      "category": "EFFECTS",
+      "risk_note": "State update occurs after external call"
+    }
+  ],
+  "violation_summary": "CEI pattern violation: External call (line 16) occurs before state updates (lines 18-19), enabling reentrancy attack. An attacker's fallback function can re-enter withdrawFunds() and drain funds before balance is set to zero.",
+  "recommendation": "Move state updates before external call: set balances[msg.sender] = 0 and orderStatus = Status.COMPLETED before the .call{value: amount}(). Alternatively, use a ReentrancyGuard modifier.",
+  "is_cei_compliant": false
+}
