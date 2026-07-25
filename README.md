@@ -481,9 +481,6 @@ cd slither && ./run_slither.sh
 ## 📑 Daftar Lampiran Skripsi (Lampiran 1–17)
 
 Lampiran 1–17 (kode program, output Slither, konfigurasi, data gas, dan diagram) **terdistribusi bersama naskah skripsi fisik**. Lampiran 1–8 berupa cuplikan kode yang disisipkan di bab 3.3; Lampiran 9–17 berupa tabel, listing, dan bukti dokumentasi yang dicetak di akhir naskah.
-
-> ℹ️ Lampiran 9–17 versi Markdown tidak disertakan dalam repository ini untuk menjaga ukuran repo. Lampiran lengkap tersedia dalam naskah skripsi cetakan yang diserahkan ke panitia.
-
 ---
 
 ## 📚 Temuan Kunci Skripsi (Hasil Eksperimen)
@@ -677,14 +674,6 @@ Alamat berikut sesuai dengan **Lampiran 7** naskah skripsi (deploy tanggal 23 Me
 | Attacker → SecureVault | [0x1ab563f1…dcfcaa065](https://sepolia.etherscan.io/tx/0x1ab563f1744219f7ca071d90b9867ce074ad05279039dc253236114dcfcaa065) |
 | Attacker → MutexVault | [0xffd49250…f027fb20](https://sepolia.etherscan.io/tx/0xffd492504ade457ab9841eafce9663d6141846241f05d50846ddfbaaf027fb20) |
 
-### Catatan Keamanan
-
-- API key DeepSeek **tidak pernah** terekspos di browser bundle (frontend hanya mengirim kode Solidity)
-- Proxy di Vercel menyembunyikan `DEEPSEEK_API_KEY` sepenuhnya di server-side environment variable
-- Endpoint CORS dibatasi via header `Access-Control-Allow-Origin` di Vercel function
-
----
-
 ## 📝 Daftar Pustaka
 
 Daftar pustaka berikut mengikuti format Vancouver, identik dengan **Daftar Pustaka** pada naskah skripsi (hal. 46–48).
@@ -738,7 +727,6 @@ Literatur konteks: rantai pasok, data statistik Indonesia, standar keamanan, dan
 38. [SmartContractSecurity]. 2020. SWC-107: Smart Contract Weakness Classification Registry. [diakses 2026 Mei 22]. http://swcregistry.io/docs/SWC-107/.
 39. Wu Y. 2022. Evolution process and supply chain adaptation of smart contracts in blockchain. *J Math.* 2022:2839566. doi:10.1155/2022/2839566.
 
-> **Total: 39 entri** (sesuai daftar pustaka skripsi, dengan tambahan 1 entri Nomic Foundation yang diperjelas versinya).
 
 ### Format Sitasi
 
@@ -748,7 +736,7 @@ Mengikuti *Vancouver Style* yang dipakai oleh Program Studi Ilmu Komputer IPB Un
 
 ## 🌐 Halaman Skripsi Resmi IPB University
 
-Skripsi ini telah terdaftar di repositori институсional IPB University dan dapat diakses publik melalui tautan berikut:
+Skripsi ini telah terdaftar di repositori IPB University dan dapat diakses publik melalui tautan berikut:
 
 🔗 **https://ipb.university/skripsi-nurcahyapriantoro-g6401221049**
 
