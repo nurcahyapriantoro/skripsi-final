@@ -750,24 +750,4 @@ Mengikuti *Vancouver Style* yang dipakai oleh Program Studi Ilmu Komputer IPB Un
 
 Penelitian ini dikembangkan untuk kepentingan akademik sebagai bagian dari tugas akhir (skripsi) di Institut Pertanian Bogor. Kode sumber dilisensikan di bawah MIT License.
 
----
-
-## 🔐 Catatan Keamanan & Secrets
-
-Repository ini memiliki file `.env` di root yang memuat:
-
-- `PRIVATE_KEY` — Private key akun Sepolia (untuk deployment & serangan di testnet)
-- `SEPOLIA_RPC_URL` — Endpoint RPC Infura Sepolia
-- `DEEPSEEK_API_KEY` — API key DeepSeek untuk CEI Analyzer
-
-File `.env` **sudah masuk `.gitignore`** sehingga **tidak akan ter-commit** ke Git. Namun, jika repository ini akan dibagikan kepada pihak lain (dosen, penguji, repo publik):
-
-1. **Rotasi** private key Sepolia setelah sidang selesai
-2. **Rotasi** API key DeepSeek setelah sidang selesai
-3. Pertimbangkan membuat `.env.example` (tanpa nilai asli) untuk dokumentasi
-
-> ⚠️ **Jangan pernah** commit `.env` ke Git publik. Gunakan environment variable di CI/CD atau platform deployment (Vercel dashboard, GitHub Secrets).
-
----
-
 **© 2026 Nurcahya Priantoro — Institut Pertanian Bogor**
