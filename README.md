@@ -746,8 +746,33 @@ Mengikuti *Vancouver Style* yang dipakai oleh Program Studi Ilmu Komputer IPB Un
 
 ---
 
+## 🌐 Halaman Skripsi Resmi IPB University
+
+Skripsi ini telah terdaftar di repositori институсional IPB University dan dapat diakses publik melalui tautan berikut:
+
+🔗 **https://ipb.university/skripsi-nurcahyapriantoro-g6401221049**
+
+Scan QR code di bawah ini untuk membuka halaman resmi skripsi:
+
+<p align="center">
+  <a href="https://ipb.university/skripsi-nurcahyapriantoro-g6401221049">
+    <img src="image-progress/qrcode-skripsi-ipb.png" alt="QR Code Halaman Skripsi IPB - Nurcahya Priantoro (G6401221049)" width="220">
+  </a>
+</p>
+
+| Field | Value |
+|---|---|
+| **Nama** | Nurcahya Priantoro |
+| **NIM** | G6401221049 |
+| **Program Studi** | S1 Ilmu Komputer, IPB University |
+| **Judul** | Mitigasi Serangan Reentrancy pada Smart Contract Rantai Pasok Berbasis Pola Checks-Effects-Interactions |
+
+---
+
 ## 📄 Lisensi
 
 Penelitian ini dikembangkan untuk kepentingan akademik sebagai bagian dari tugas akhir (skripsi) di Institut Pertanian Bogor. Kode sumber dilisensikan di bawah MIT License.
+
+https://ipb.university/skripsi-nurcahyapriantoro-g6401221049
 
 **© 2026 Nurcahya Priantoro — Institut Pertanian Bogor**
