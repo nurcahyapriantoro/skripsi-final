@@ -59,3 +59,14 @@ hardhat-node.log
 *.zip
 *.tar.gz
 *.tgz
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Firebase build cache
+.firebase/
+
+# Duplicate logo at root (canonical copy lives in cei-analyzer/public/)
+/logo_cei.png

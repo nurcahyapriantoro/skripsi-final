@@ -75,7 +75,6 @@ contract SecureVault {
 
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "SecureVault: ETH transfer failed");
-        
     }
 
     function getContractBalance() external view returns (uint256) {
